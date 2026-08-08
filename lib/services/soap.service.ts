@@ -18,8 +18,7 @@ export async function saveSoapNote({
   summary,
   aiModelVersion = 'llama-3.3-70b-versatile',
 }: SaveSoapNoteParams) {
-  const { data, error } = await supabase
-    .from('soap_notes')
+  const { data, error } = await (supabase.from('soap_notes') as any)
     .upsert(
       [
         {
