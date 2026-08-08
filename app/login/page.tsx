@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -36,49 +37,135 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-md">
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">Acceso Médico</h1>
+    <main className="flex min-h-screen items-center justify-center bg-[#F1F5F9] p-4 sm:p-6 font-sans">
+      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl shadow-slate-200/60 border border-slate-100">
         
+        {/* Header con Isotipo y Branding MedikAI */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-3 flex items-center justify-center gap-2">
+            {/* Isotipo SVG MedikAI: Onda Sonora + Fonendoscopio */}
+            <svg
+              className="h-10 w-auto text-[#0052FF]"
+              viewBox="0 0 120 60"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85"
+                stroke="currentColor"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52"
+                stroke="#00D09C"
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
+              <circle cx="90" cy="54" r="4" fill="#00D09C" />
+            </svg>
+            <span className="text-2xl font-bold tracking-tight text-[#1A202C]">
+              Medik<span className="text-[#0052FF]">AI</span>
+            </span>
+          </div>
+          <h1 className="text-xl font-semibold text-slate-800">Acceso Médico</h1>
+          <p className="mt-1 text-xs text-slate-500">
+            Asistente de Dictado Inteligente & Automatización SOAP
+          </p>
+        </div>
+
+        {/* Mensaje de Error Accesible */}
         {error && (
-          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">
-            {error}
+          <div className="mb-6 flex items-center gap-2 rounded-xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-700">
+            <svg className="h-4 w-4 shrink-0 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        {/* Formulario */}
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Correo electrónico</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+              Correo electrónico
+            </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-gray-900 focus:border-blue-500 focus:outline-none"
-              placeholder="doctor@hospital.com"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-[#1A202C] placeholder-slate-400 transition-all focus:border-[#0052FF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+              placeholder="doctor@ejemplo.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Contraseña</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 w-full rounded-lg border border-gray-300 p-2.5 text-gray-900 focus:border-blue-500 focus:outline-none"
-              placeholder="••••••••"
-            />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                Contraseña
+              </label>
+            </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pr-11 text-sm text-[#1A202C] placeholder-slate-400 transition-all focus:border-[#0052FF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                placeholder="••••••••"
+              />
+              {/* Botón para mostrar/ocultar contraseña */}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+              >
+                {showPassword ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a8.98 8.98 0 013.682-.783c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m-4.092-4.092a3 3 0 10-4.243-4.243" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 p-2.5 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052FF] py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#0052FF]/25 transition-all hover:bg-[#0043D6] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? 'Iniciando sesión...' : 'Entrar a Consultas'}
+            {loading ? (
+              <>
+                <svg className="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>Iniciando sesión...</span>
+              </>
+            ) : (
+              <span>Iniciar Sesión en Consultas</span>
+            )}
           </button>
         </form>
+
+        {/* Footer Legal y Seguridad (Aporta Confianza al Médico) */}
+        <div className="mt-8 border-t border-slate-100 pt-5 text-center">
+          <p className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-400">
+            <svg className="h-3.5 w-3.5 text-[#00D09C]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Cifrado RLS • Cumplimiento NOM-024-SSA3-2012
+          </p>
+        </div>
+
       </div>
     </main>
   )

@@ -192,7 +192,7 @@ export default function ConsultaPage() {
                 S - Subjetivo
               </h3>
               <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                {formatearValorSOAP(notaSoap.subjetivo)}
+                {formatearValorSOAP(notaSoap.objetivo)}
               </p>
             </div>
 
@@ -202,7 +202,7 @@ export default function ConsultaPage() {
                 O - Objetivo
               </h3>
              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-              {formatearValorSOAP(notaSoap.objetivo)}
+              {formatearValorSOAP(notaSoap.subjetivo)}
             </p>
             </div>
 
