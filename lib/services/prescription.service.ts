@@ -26,8 +26,8 @@ export async function savePrescription({
   // Generación de un código de folio único y legible para cumplimiento normativo
   const folioCode = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  const { data, error } = await supabase
-    .from('prescriptions')
+  // Reemplaza esta consulta:
+  const { data, error } = await (supabase.from('prescriptions') as any)
     .upsert(
       [
         {
@@ -35,13 +35,14 @@ export async function savePrescription({
           doctor_id: doctorId,
           medications: medications || [],
           instructions: instructions || null,
-        } as any,
+          prescription_code: folioCode,
+        },
       ],
-      { onConflict: 'encounter_id' } // Resuelve el error 42P10 de conflicto de índice único
+      { onConflict: 'encounter_id' }
     )
     .select()
     .single();
-
+    
   if (error) {
     throw new Error(`Error al guardar la prescripción: ${error.message}`);
   }
