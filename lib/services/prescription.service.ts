@@ -35,8 +35,7 @@ export async function savePrescription({
           doctor_id: doctorId,
           medications: medications || [],
           instructions: instructions || null,
-          prescription_code: folioCode,
-        },
+        } as any,
       ],
       { onConflict: 'encounter_id' } // Resuelve el error 42P10 de conflicto de índice único
     )
