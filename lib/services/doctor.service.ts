@@ -33,12 +33,14 @@ export async function resolveDoctorId(
   console.log("DEBUG - Resultado:", doctor);
   console.log("DEBUG - Error:", doctorError);
 
-  if (doctorError || !doctor) {  
+  const doctorData = doctor as any;
+
+  if (doctorError || !doctorData) {  
     throw new Error(
       `No se pudo resolver el doctor_id para el usuario autenticado (${userId}). Asegúrate de que el médico esté registrado en la tabla 'doctors'.`
     );
   }
 
   // Retorna el 'id' correcto de la tabla doctors (ej. 902054c7-...)
-  return doctor.id;
+  return doctorData.id;
 }
