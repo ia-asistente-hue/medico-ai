@@ -141,7 +141,7 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
             medical_license: doctorData?.medical_license || '',
             specialty: doctorData?.specialty || '',
             digital_signature_url: doctorData?.digital_signature_url || null,
-            profile: profileData || null,
+            profile: Array.isArray(profileData) ? profileData[0] || null : profileData || null,
           },
           soap_note: soapData || null,
           prescription: prescriptionData ? {
