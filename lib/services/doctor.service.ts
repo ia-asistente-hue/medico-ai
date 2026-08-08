@@ -15,8 +15,10 @@ export async function resolveDoctorId(
       .eq('id', encounterId)
       .maybeSingle();
 
-    if (!error && data?.doctor_id) {
-      return data.doctor_id;
+    const encounterData = data as any;
+
+    if (!error && encounterData?.doctor_id) {
+      return encounterData.doctor_id;
     }
   }
 
