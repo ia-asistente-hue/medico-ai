@@ -57,7 +57,6 @@ const formatSection = (content: any): string => {
   return String(content);
 };
 
-// Componente interno que maneja la lógica y usa useSearchParams()
 function NuevaConsultaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -149,18 +148,287 @@ function NuevaConsultaContent() {
     }
   };
 
-  // AQUÍ CONTINÚA EL RESTO DE TU RENDER / JSX ACTUAL...
+  const handleSelectPatient = (patientId: string) => {
+    setSelectedPatient(patients.find((item) => item.id === patientId) || null);
+  };
+
+  const handleCreatePatient = async (newPatientData: any) => {
+    if (!doctorId) return;
+    setErrorMessage(null);
+
+    const { data: createdPatient, error } = await supabase
+      .from('patients')
+      .insert([{ doctor_id: doctorId, ...newPatientData }])
+      .select()
+      .single();
+
+    if (error) {
+      setErrorMessage('Error al registrar paciente: ' + error.message);
+      return;
+    }
+
+    await cargarPacientes(doctorId);
+    setSelectedPatient(createdPatient);
+  };
+
+  const iniciarEncuentro = async () => {
+    if (!selectedPatient || !doctorId) {
+      setErrorMessage('Por favor selecciona o registra un paciente.');
+      return;
+    }
+    setErrorMessage(null);
+
+    const { data: encounter, error } = await supabase
+      .from('encounters')
+      .insert([{ doctor_id: doctorId, patient_id: selectedPatient.id, status: 'in_progress' }])
+      .select()
+      .single();
+
+    if (error) setErrorMessage('Error al iniciar la consulta: ' + error.message);
+    else setEncounterId(encounter.id);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const audioChunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => audioChunks.push(e.data);
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        await procesarAudio(audioBlob);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      setErrorMessage('No se pudo acceder al micrófono.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const procesarAudio = async (audioBlob: Blob) => {
+    if (!encounterId) return;
+    setLoading(true);
+    setErrorMessage(null);
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'grabacion.webm');
+    formData.append('encounter_id', encounterId);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch('/api/transcribir', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token || ''}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Error procesando la transcripción');
+
+      setEditableSoap({
+        subjetivo: formatSection(data.soap.subjetivo),
+        objetivo: formatSection(data.soap.objetivo),
+        analisis: formatSection(data.soap.analisis),
+        plan: formatSection(data.soap.plan),
+      });
+
+      const medsResponded = data.prescription?.medications || data.prescription?.medication_list || [];
+      const instResponded = data.prescription?.instructions || '';
+
+      setMedicamentos(medsResponded);
+      setInstruccionesReceta(instResponded);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuardarNota = async () => {
+    if (!encounterId || !editableSoap || !doctorId || !selectedPatient) return;
+    setSaving(true);
+    setErrorMessage(null);
+
+    try {
+      // 1. Guardar la nota SOAP
+      const { error: soapError } = await supabase.from('soap_notes').upsert(
+        [
+          {
+            encounter_id: encounterId,
+            subjective: editableSoap.subjetivo,
+            objective: editableSoap.objetivo,
+            assessment: editableSoap.analisis,
+            plan: editableSoap.plan,
+          },
+        ],
+        { onConflict: 'encounter_id' }
+      );
+
+      if (soapError) throw soapError;
+
+      // 2. Guardar Receta
+      if (medicamentos.length > 0) {
+        const { data: existingRx } = await supabase
+          .from('prescriptions')
+          .select('id')
+          .eq('encounter_id', encounterId)
+          .maybeSingle();
+
+        if (existingRx) {
+          const { error: rxUpdateError } = await supabase
+            .from('prescriptions')
+            .update({
+              medications: medicamentos,
+              instructions: instruccionesReceta || null,
+            })
+            .eq('id', existingRx.id);
+
+          if (rxUpdateError) throw rxUpdateError;
+        } else {
+          const { error: rxInsertError } = await supabase.from('prescriptions').insert([
+            {
+              encounter_id: encounterId,
+              doctor_id: doctorId,
+              patient_id: selectedPatient.id,
+              medications: medicamentos,
+              instructions: instruccionesReceta || null,
+              prescription_code: `RX-${Math.floor(100000 + Math.random() * 900000)}`,
+            },
+          ]);
+          if (rxInsertError) throw rxInsertError;
+        }
+      }
+
+      // 3. Finalizar Encuentro
+      const { error: encounterError } = await supabase
+        .from('encounters')
+        .update({ status: 'completed' })
+        .eq('id', encounterId);
+
+      if (encounterError) throw encounterError;
+
+      // REDIRECCIÓN TRAS COMPLETAR LA CONSULTA
+      router.push(`/consulta/${encounterId}`);
+    } catch (err: any) {
+      setErrorMessage('Error al guardar la nota y receta: ' + err.message);
+      setSaving(false);
+    }
+  };
+
+  const currentStep = !encounterId ? 1 : !editableSoap ? 2 : 3;
+
   return (
-    <div>
-      {/* Tu JSX actual */}
+    <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <span className="text-xl font-bold tracking-tight text-[#1A202C]">
+            Medik<span className="text-[#0052FF]">AI</span>
+          </span>
+          <button
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push('/login');
+            }}
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all"
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+        {/* Barra de Progreso */}
+        <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-200/80">
+          <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+            <div className={`p-2 rounded-xl ${currentStep === 1 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
+              1. Selección Paciente
+            </div>
+            <div className={`p-2 rounded-xl ${currentStep === 2 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
+              2. Dictado Scribe
+            </div>
+            <div className={`p-2 rounded-xl ${currentStep === 3 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
+              3. SOAP y Receta
+            </div>
+          </div>
+        </div>
+
+        {errorMessage && (
+          <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700">
+            <strong>Atención: </strong>
+            {errorMessage}
+          </div>
+        )}
+
+        {/* PASO 1 */}
+        {!encounterId && (
+          <PatientSelector
+            patients={patients}
+            selectedPatient={selectedPatient}
+            onSelectPatient={handleSelectPatient}
+            onCreatePatient={handleCreatePatient}
+            onStartEncounter={iniciarEncuentro}
+          />
+        )}
+
+        {/* PASO 2 */}
+        {encounterId && !editableSoap && (
+          <AudioRecorder
+            isRecording={isRecording}
+            loading={loading}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
+            patientName={`${selectedPatient?.first_name} ${selectedPatient?.last_name}`}
+            patientDob={selectedPatient?.date_of_birth}
+          />
+        )}
+
+        {/* PASO 3 */}
+        {editableSoap && (
+          <div className="space-y-6">
+            <SoapEditor
+              editableSoap={editableSoap}
+              onUpdateSoap={(field, val) => setEditableSoap({ ...editableSoap, [field]: val })}
+            />
+            <PrescriptionBuilder
+              medicamentos={medicamentos}
+              nuevoMed={nuevoMed}
+              instruccionesReceta={instruccionesReceta}
+              onUpdateNuevoMed={(field, val) => setNuevoMed({ ...nuevoMed, [field]: val })}
+              onAgregarMedicamento={() => {
+                if (!nuevoMed.medicamento.trim() || !nuevoMed.dosis.trim()) return;
+                setMedicamentos([...medicamentos, nuevoMed]);
+                setNuevoMed({ medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
+              }}
+              onEliminarMedicamento={(idx) => setMedicamentos(medicamentos.filter((_, i) => i !== idx))}
+              onUpdateInstrucciones={setInstruccionesReceta}
+              onGuardarNota={handleGuardarNota}
+              saving={saving}
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 }
 
-// Componente principal exportado envuelto en Suspense
 export default function NuevaConsultaPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-center">Cargando consulta...</div>}>
+    <Suspense fallback={<div className="p-4 text-center text-slate-500">Cargando consulta...</div>}>
       <NuevaConsultaContent />
     </Suspense>
   );
