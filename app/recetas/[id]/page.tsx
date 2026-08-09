@@ -1,398 +1,474 @@
+// app/pacientes/[id]/page.tsx
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import Link from 'next/link';
 
-interface Medicamento {
-  medicamento?: string;
-  nombre?: string;
-  name?: string;
-
-  dosis?: string;
-  dosage?: string;
-
-  frecuencia?: string;
-  frequency?: string;
-
-  duracion?: string;
-  duration?: string;
-
-  indicaciones?: string;
-  instructions?: string;
+interface Patient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  phone?: string | null;
+  email?: string | null;
+  gender: string;
+  blood_type: string;
+  allergies: string[];
+  chronic_conditions: string[];
+  emergency_contact: {
+    name?: string;
+    phone?: string;
+    relationship?: string;
+  };
 }
 
-interface PrescriptionDetail {
+interface EncounterWithDetails {
   id: string;
   created_at: string;
-  medications: Medicamento[];
-  instructions: string | null;
-  prescription_code: string;
-  patient: {
-    first_name: string;
-    last_name: string;
-    date_of_birth?: string;
-    gender?: string;
-  };
-  doctor: {
-    medical_license: string;
-    specialty: string;
-    digital_signature_url: string | null;
-    profile: {
-      first_name: string;
-      last_name: string;
-    } | null;
-  };
+  status: string;
+  soap_notes: {
+    subjective: string;
+    objective: string;
+    assessment: string;
+    plan: string;
+    summary: string;
+  } | null;
+  prescriptions: {
+    id: string;
+    medications: any[];
+    instructions: string;
+    prescription_code: string;
+  } | null;
 }
 
-export default function DetalleRecetaPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
-  const prescriptionId = resolvedParams.id;
-
+export default function ExpedienteClinicoPage() {
+  const params = useParams();
+  const router = useRouter();
   const supabase = createClient();
-  const [prescription, setPrescription] = useState<PrescriptionDetail | null>(null);
+  const patientId = params.id as string;
+
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [encounters, setEncounters] = useState<EncounterWithDetails[]>([]);
+  const [activeTab, setActiveTab] = useState<'historial' | 'fichar' | 'recetas'>('historial');
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expandedEncounter, setExpandedEncounter] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchPrescriptionData() {
-      try {
-        setLoading(true);
-        setErrorMessage(null);
+    if (patientId) {
+      fetchExpedienteData();
+    }
+  }, [patientId]);
 
-        const { data, error } = await supabase
-          .from('prescriptions')
-          .select(`
+  const fetchExpedienteData = async () => {
+    setLoading(true);
+    try {
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+
+      if (patientError) throw patientError;
+      setPatient(patientData);
+
+      const { data: encountersData, error: encountersError } = await supabase
+        .from('encounters')
+        .select(`
+          id,
+          created_at,
+          status,
+          soap_notes (
+            subjective,
+            objective,
+            assessment,
+            plan,
+            summary
+          ),
+          prescriptions (
             id,
-            created_at,
             medications,
             instructions,
-            prescription_code,
-            patients (
-              first_name,
-              last_name,
-              date_of_birth,
-              gender
-            ),
-            doctors (
-              medical_license,
-              specialty,
-              digital_signature_url,
-              profiles (
-                first_name,
-                last_name
-              )
-            )
-          `)
-          .eq('id', prescriptionId)
-          .single();
+            prescription_code
+          )
+        `)
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
+      if (encountersError) throw encountersError;
+      
+      const formattedEncounters = (encountersData || []).map((e: any) => ({
+        id: e.id,
+        created_at: e.created_at,
+        status: e.status,
+        soap_notes: Array.isArray(e.soap_notes) ? e.soap_notes[0] : e.soap_notes,
+        prescriptions: Array.isArray(e.prescriptions) ? e.prescriptions[0] : e.prescriptions,
+      }));
 
-        const patientData = Array.isArray(data.patients) ? data.patients[0] : data.patients;
-        const doctorData = Array.isArray(data.doctors) ? data.doctors[0] : data.doctors;
-        const profileData = doctorData && Array.isArray(doctorData.profiles) ? doctorData.profiles[0] : doctorData?.profiles;
-
-        // Parsear medicamentos si vienen como JSON string
-        let medicamentosParsed: Medicamento[] = [];
-        if (data.medications) {
-          if (typeof data.medications === 'string') {
-            try {
-              medicamentosParsed = JSON.parse(data.medications);
-            } catch {
-              medicamentosParsed = [];
-            }
-          } else if (Array.isArray(data.medications)) {
-            medicamentosParsed = data.medications;
-          }
-        }
-
-        setPrescription({
-          id: data.id,
-          created_at: data.created_at,
-          medications: medicamentosParsed,
-          instructions: data.instructions,
-          prescription_code: data.prescription_code,
-          patient: patientData,
-          doctor: {
-            medical_license: doctorData?.medical_license || '',
-            specialty: doctorData?.specialty || '',
-            digital_signature_url: doctorData?.digital_signature_url || null,
-            profile: Array.isArray(profileData) ? profileData[0] || null : profileData || null,
-          },
-        });
-      } catch (err: any) {
-        setErrorMessage('No se pudo cargar la receta médica: ' + (err.message || 'Error desconocido'));
-      } finally {
-        setLoading(false);
+      setEncounters(formattedEncounters);
+      if (formattedEncounters.length > 0) {
+        setExpandedEncounter(formattedEncounters[0].id);
       }
+    } catch (err) {
+      console.error('Error al cargar expediente:', err);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (prescriptionId) {
-      fetchPrescriptionData();
+  const calculateAge = (dob: string) => {
+    if (!dob) return 'N/A';
+    const birth = new Date(dob);
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const monthDiff = now.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+      age--;
     }
-  }, [prescriptionId]);
+    return age;
+  };
+
+  // Función para traducir y renderizar el estado en español
+  const renderEstadoBadge = (status: string) => {
+    if (status === 'completed' || status === 'COMPLETED') {
+      return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-700">Completada</span>;
+    }
+    return <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 animate-pulse">En Proceso</span>;
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F1F5F9] flex flex-col items-center justify-center p-6">
-        <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
-          <svg className="h-5 w-5 animate-spin text-[#0052FF]" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span>Cargando receta médica...</span>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px] text-slate-500 text-sm">
+        Cargando expediente clínico...
       </div>
     );
   }
 
-  if (errorMessage || !prescription) {
+  if (!patient) {
     return (
-      <div className="min-h-screen bg-[#F1F5F9] p-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-sm border border-slate-200 text-center space-y-4">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <p className="text-sm text-slate-700">{errorMessage || 'Receta no encontrada.'}</p>
-          <div>
-            <Link
-              href="/consulta/nueva"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0052FF] px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-[#0043D6] transition-all"
-            >
-              ← Volver a nueva consulta
-            </Link>
-          </div>
-        </div>
+      <div className="p-6 text-center text-slate-600 text-sm">
+        No se encontró el paciente solicitado.
       </div>
     );
   }
-
-  const doctorNombre = prescription.doctor?.profile
-    ? `Dr(a). ${prescription.doctor.profile.first_name} ${prescription.doctor.profile.last_name}`
-    : 'Dr(a). Tratante';
-
-  const formatGender = (gender?: string) => {
-    if (!gender) return 'No registrado';
-    const g = gender.toLowerCase();
-    if (g === 'female' || g === 'femenino') return 'Femenino';
-    if (g === 'male' || g === 'masculino') return 'Masculino';
-    return 'Otro';
-  };
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12 print:bg-white print:p-0 print:pb-0">
-      
-      {/* Estilos CSS para limpiar la impresión en PDF */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            margin: 10mm 15mm;
-            size: auto;
-          }
-          body {
-            background-color: #ffffff !important;
-            -webkit-print-color-adjust: exact;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-        }
-      `}</style>
-      
-      {/* BARRA SUPERIOR (OCULTA EN IMPRESIÓN) */}
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 py-4 print:hidden">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link
-            href="/consulta/nueva"
-            className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-[#0052FF] transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Volver</span>
-          </Link>
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6 font-sans pb-12">
+      {/* BOTÓN VOLVER & ENCABEZADO RESPONSIVO */}
+      <div className="space-y-4">
+        <button
+          onClick={() => router.back()}
+          className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors block"
+        >
+          ← Volver a Pacientes
+        </button>
 
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 active:scale-[0.98] transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            <span>Imprimir Receta Médica (PDF)</span>
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none">
-        
-        {/* HOJA DE RECETA MÉDICA */}
-        <div className="rounded-2xl bg-white p-6 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-200/80 space-y-8 print:shadow-none print:border-none print:p-0 print:space-y-6">
-          
-          {/* ENCABEZADO INSTITUCIONAL Y MÉDICO */}
-          <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div className="space-y-1 max-w-xs sm:max-w-md">
-              <div className="flex items-center gap-2 mb-1">
-                <svg className="h-7 w-auto text-[#0052FF]" viewBox="0 0 120 60" fill="none">
-                  <path d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52" stroke="#00D09C" strokeWidth="6" strokeLinecap="round" />
-                  <circle cx="90" cy="54" r="4" fill="#00D09C" />
-                </svg>
-                <span className="text-lg font-bold tracking-tight text-[#1A202C]">
-                  Medik<span className="text-[#0052FF]">AI</span>
-                </span>
-              </div>
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                RECETA MÉDICA
-              </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Documento Oficial conforme a la <span className="font-semibold text-slate-700">NOM-004-SSA3-2012</span>
-              </p>
-            </div>
-
-            <div className="text-left sm:text-right text-xs text-slate-600 space-y-1 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl w-full sm:w-auto shrink-0">
-              <div>
-                <span className="text-slate-400">Médico: </span>
-                <span className="font-bold text-slate-800">{doctorNombre}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Cédula Prof: </span>
-                <span className="font-semibold text-slate-800">{prescription.doctor?.medical_license || 'En trámite'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Especialidad: </span>
-                <span className="font-medium text-slate-700">{prescription.doctor?.specialty || 'General'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400">Fecha: </span>
-                <span className="font-medium text-slate-700">
-                  {new Date(prescription.created_at).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* FICHA DE IDENTIFICACIÓN DEL PACIENTE */}
-          <div className="rounded-xl bg-slate-50 p-4 border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm print:bg-slate-50/60">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#0052FF] font-bold text-sm print:hidden">
-                {prescription.patient?.first_name?.[0]}{prescription.patient?.last_name?.[0]}
-              </div>
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Paciente</span>
-                <strong className="text-base font-bold text-slate-800">
-                  {prescription.patient?.first_name} {prescription.patient?.last_name}
-                </strong>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-start sm:justify-end gap-6 text-xs">
-              <div>
-                <span className="text-slate-400 block">Fecha de Nacimiento</span>
-                <span className="font-semibold text-slate-700 text-sm">
-                  {prescription.patient?.date_of_birth || 'No registrada'}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Género</span>
-                <span className="font-semibold text-slate-700 text-sm">
-                  {formatGender(prescription.patient?.gender)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 💊 SECCIÓN DE PRESCRIPCIÓN MÉDICA */}
-          {prescription.medications && prescription.medications.length > 0 ? (
-            <div className="space-y-3 pt-4 border-t border-slate-200 print:border-none print:pt-0">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-xs font-extrabold text-[#00D09C] print:hidden">
-                    💊
-                  </span>
-                  <h3 className="font-bold text-slate-800 text-xs tracking-wider uppercase">
-                    Indicaciones & Medicamentos Prescritos
-                  </h3>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400">
-                  Folio: {prescription.prescription_code || 'S/F'}
-                </span>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 overflow-hidden print:border-slate-300">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase">
-                      <th className="p-3">Medicamento</th>
-                      <th className="p-3">Dosis</th>
-                      <th className="p-3">Frecuencia</th>
-                      <th className="p-3">Duración</th>
-                      <th className="p-3">Indicaciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                    {prescription.medications.map((med, idx) => {
-                      const nombre = med.medicamento || med.nombre || med.name || '-';
-                      const dosis = med.dosis || med.dosage || '-';
-                      const frecuencia = med.frecuencia || med.frequency || '-';
-                      const duracion = med.duracion || med.duration || '-';
-                      const indicaciones = med.indicaciones || med.instructions || '-';
-
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="p-3 font-semibold text-slate-900">{nombre}</td>
-                          <td className="p-3">{dosis}</td>
-                          <td className="p-3">{frecuencia}</td>
-                          <td className="p-3">{duracion}</td>
-                          <td className="p-3 text-slate-500">{indicaciones}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {prescription.instructions && (
-                <div className="mt-3 text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-100 print:bg-white print:border-slate-200">
-                  <strong className="text-slate-900 block mb-1">Instrucciones Adicionales:</strong>
-                  {prescription.instructions}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-xs text-slate-400 italic p-4 text-center border border-dashed rounded-xl">
-              No hay medicamentos prescritos para esta receta.
-            </div>
-          )}
-
-          {/* FIRMA Y CÉDULA MÉDICA */}
-          <div className="pt-16 sm:pt-20 mt-8 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2 print:pt-16 print:mt-8 print:break-inside-avoid">
-            {prescription.doctor?.digital_signature_url ? (
-              <img 
-                src={prescription.doctor.digital_signature_url} 
-                alt="Firma Médica" 
-                className="h-16 mx-auto object-contain mb-1" 
-              />
-            ) : (
-              <div className="w-56 mx-auto border-b border-slate-400 pt-10"></div>
-            )}
-            <p className="font-bold text-slate-800">{doctorNombre}</p>
-            <p className="text-[10px] text-slate-400">
-              Cédula Prof: {prescription.doctor?.medical_license || 'S/N'} | Firma Autógrafa / Digitalizada
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              {patient.first_name} {patient.last_name}
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-1.5 font-medium">
+              <span>{calculateAge(patient.date_of_birth)} años</span>
+              <span>•</span>
+              <span className="capitalize">Sexo: {patient.gender || 'No especificado'}</span>
+              <span>•</span>
+              <span>Tipo de Sangre: <strong className="text-rose-600">{patient.blood_type || 'N/A'}</strong></span>
             </p>
           </div>
 
+          <button
+            onClick={() => router.push(`/consulta/nueva?patient_id=${patient.id}&auto_start=true`)}
+            className="w-full sm:w-auto px-4 py-2.5 bg-[#0052FF] hover:bg-[#0043D6] text-white font-bold text-xs rounded-xl shadow-md shadow-blue-500/20 transition-all text-center"
+          >
+            + Nueva Consulta
+          </button>
         </div>
-      </main>
+      </div>
+
+      {/* ALERTAS CRÍTICAS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl">
+          <span className="font-bold text-amber-900 block mb-1">⚠️ Alergias Registradas:</span>
+          {patient.allergies && patient.allergies.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {patient.allergies.map((alg, i) => (
+                <span key={i} className="px-2 py-0.5 bg-amber-200/80 text-amber-900 font-semibold rounded-md text-[11px]">
+                  {alg}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-amber-700 italic">Sin alergias conocidas</span>
+          )}
+        </div>
+
+        <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+          <span className="font-bold text-slate-800 block mb-1">🩺 Condiciones Crónicas:</span>
+          {patient.chronic_conditions && patient.chronic_conditions.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {patient.chronic_conditions.map((cond, i) => (
+                <span key={i} className="px-2 py-0.5 bg-slate-200 text-slate-800 font-medium rounded-md text-[11px]">
+                  {cond}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-slate-500 italic">Sin condiciones registradas</span>
+          )}
+        </div>
+      </div>
+
+      {/* PESTAÑAS NAVEGACIÓN (Scroll horizontal en móviles) */}
+      <div className="flex border-b border-slate-200 text-xs font-semibold text-slate-600 gap-6 overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => setActiveTab('historial')}
+          className={`pb-2.5 transition-all whitespace-nowrap ${
+            activeTab === 'historial'
+              ? 'border-b-2 border-[#0052FF] text-[#0052FF]'
+              : 'hover:text-slate-900'
+          }`}
+        >
+          Historial de Consultas ({encounters.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('recetas')}
+          className={`pb-2.5 transition-all whitespace-nowrap ${
+            activeTab === 'recetas'
+              ? 'border-b-2 border-[#0052FF] text-[#0052FF]'
+              : 'hover:text-slate-900'
+          }`}
+        >
+          Recetas Emitidas
+        </button>
+        <button
+          onClick={() => setActiveTab('fichar')}
+          className={`pb-2.5 transition-all whitespace-nowrap ${
+            activeTab === 'fichar'
+              ? 'border-b-2 border-[#0052FF] text-[#0052FF]'
+              : 'hover:text-slate-900'
+          }`}
+        >
+          Información del Paciente
+        </button>
+      </div>
+
+      {/* CONTENIDO PESTAÑA 1: HISTORIAL DE CONSULTAS */}
+      {activeTab === 'historial' && (
+        <div className="space-y-4">
+          {encounters.length === 0 ? (
+            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500 italic">
+              Este paciente aún no registra consultas médicas previas.
+            </div>
+          ) : (
+            encounters.map((enc) => {
+              const isExpanded = expandedEncounter === enc.id;
+              const dateStr = new Date(enc.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              return (
+                <div
+                  key={enc.id}
+                  className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden transition-all"
+                >
+                  <div
+                    onClick={() => setExpandedEncounter(isExpanded ? null : enc.id)}
+                    className="p-4 bg-slate-50/60 hover:bg-slate-100/60 cursor-pointer flex items-center justify-between border-b border-slate-100 gap-2"
+                  >
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">
+                        Consulta Médica — {dateStr}
+                      </span>
+                      {enc.soap_notes?.assessment ? (
+                        <p className="text-xs text-[#0052FF] font-semibold mt-0.5 line-clamp-1">
+                          Diagnóstico: {enc.soap_notes.assessment}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic mt-0.5">
+                          Diagnóstico: No hay información disponible sobre el diagnóstico.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {renderEstadoBadge(enc.status)}
+                      <span className="text-slate-400 text-xs">
+                        {isExpanded ? '▲' : '▼'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="p-4 sm:p-5 space-y-4 text-xs">
+                      {enc.soap_notes ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                            <span className="font-bold text-slate-700 block">S - Subjetivo (Motivo / Síntomas):</span>
+                            <p className="text-slate-600 whitespace-pre-line leading-relaxed">
+                              {enc.soap_notes.subjective || 'Sin registro'}
+                            </p>
+                          </div>
+
+                          <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                            <span className="font-bold text-slate-700 block">O - Objetivo (Exploración / Signos):</span>
+                            <p className="text-slate-600 whitespace-pre-line leading-relaxed">
+                              {enc.soap_notes.objective || 'Sin registro'}
+                            </p>
+                          </div>
+
+                          <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                            <span className="font-bold text-slate-700 block">A - Evaluación / Diagnóstico:</span>
+                            <p className="text-slate-600 whitespace-pre-line leading-relaxed">
+                              {enc.soap_notes.assessment || 'Sin registro'}
+                            </p>
+                          </div>
+
+                          <div className="space-y-1 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                            <span className="font-bold text-slate-700 block">P - Plan y Tratamiento:</span>
+                            <p className="text-slate-600 whitespace-pre-line leading-relaxed">
+                              {enc.soap_notes.plan || 'Sin registro'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-slate-400 italic">Nota SOAP no disponible para esta consulta.</p>
+                      )}
+
+                      {enc.prescriptions && (
+                        <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <span className="font-bold text-slate-800">Receta Prescrita: </span>
+                            <span className="text-slate-500 font-mono">#{enc.prescriptions.prescription_code}</span>
+                            <span className="text-slate-500 ml-2">
+                              ({(enc.prescriptions.medications || []).length} medicamentos)
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => router.push(`/recetas/${enc.prescriptions?.id}`)}
+                            className="w-full sm:w-auto px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors text-[11px] text-center"
+                          >
+                            📄 Ver / Descargar PDF Receta
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* CONTENIDO PESTAÑA 2: RECETAS */}
+      {activeTab === 'recetas' && (
+        <div className="space-y-3">
+          {encounters.filter((e) => e.prescriptions).length === 0 ? (
+            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500 italic">
+              No hay recetas registradas para este paciente.
+            </div>
+          ) : (
+            encounters
+              .filter((e) => e.prescriptions)
+              .map((enc) => {
+                const rx = enc.prescriptions!;
+                return (
+                  <div
+                    key={rx.id}
+                    className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-3"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-800">
+                        Receta Código: <span className="font-mono text-[#0052FF]">{rx.prescription_code}</span>
+                      </p>
+                      <p className="text-slate-500 mt-0.5">
+                        Emisión: {new Date(enc.created_at).toLocaleDateString('es-ES')}
+                      </p>
+                      <div className="mt-2 text-slate-600">
+                        <span className="font-semibold">Fármacos: </span>
+                        {(rx.medications || []).map((m: any) => m.medicamento || m.nombre).join(', ')}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => router.push(`/recetas/${rx.id}`)}
+                      className="w-full sm:w-auto px-3.5 py-2 bg-blue-50 text-[#0052FF] hover:bg-blue-100 font-semibold rounded-lg transition-colors text-[11px] text-center shrink-0"
+                    >
+                      Ver PDF
+                    </button>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      )}
+
+      {/* CONTENIDO PESTAÑA 3: INFORMACIÓN PACIENTE */}
+      {activeTab === 'fichar' && (
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 space-y-4 text-xs shadow-sm">
+          <h3 className="font-bold text-slate-800 text-sm border-b pb-2.5 border-slate-100">
+            Ficha Demográfica y Contacto
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className="text-slate-400 block mb-0.5">Teléfono:</span>
+              {patient.phone ? (
+                <a href={`tel:${patient.phone}`} className="font-semibold text-[#0052FF] hover:underline">
+                  📞 {patient.phone}
+                </a>
+              ) : (
+                <span className="text-slate-400 italic">No registrado</span>
+              )}
+            </div>
+
+            <div>
+              <span className="text-slate-400 block mb-0.5">Correo Electrónico:</span>
+              {patient.email ? (
+                <a href={`mailto:${patient.email}`} className="font-semibold text-[#0052FF] hover:underline">
+                  ✉️ {patient.email}
+                </a>
+              ) : (
+                <span className="text-slate-400 italic">No registrado</span>
+              )}
+            </div>
+
+            <div>
+              <span className="text-slate-400 block mb-0.5">Fecha de Nacimiento:</span>
+              <span className="font-semibold text-slate-800">{patient.date_of_birth}</span>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block mb-0.5">Sexo:</span>
+              <span className="font-semibold text-slate-800 capitalize">{patient.gender || 'No registrado'}</span>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block mb-0.5">Tipo de Sangre:</span>
+              <span className="font-semibold text-slate-800">{patient.blood_type || 'No registrado'}</span>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block mb-0.5">Contacto de Emergencia:</span>
+              <span className="font-semibold text-slate-800">
+                {patient.emergency_contact?.name ? (
+                  <>
+                    {patient.emergency_contact.name} ({patient.emergency_contact.relationship || 'Contacto'}) — {patient.emergency_contact.phone || 'Sin número'}
+                  </>
+                ) : (
+                  'No registrado'
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
