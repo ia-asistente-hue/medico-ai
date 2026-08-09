@@ -1,3 +1,4 @@
+// app/consulta/nueva/page.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -71,6 +72,7 @@ function NuevaConsultaContent() {
   const [doctorId, setDoctorId] = useState<string | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -203,8 +205,23 @@ function NuevaConsultaContent() {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
+      setIsPaused(false);
     } catch (err) {
       setErrorMessage('No se pudo acceder al micrófono.');
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.pause();
+      setIsPaused(true);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'paused') {
+      mediaRecorder.resume();
+      setIsPaused(false);
     }
   };
 
@@ -212,6 +229,7 @@ function NuevaConsultaContent() {
     if (mediaRecorder) {
       mediaRecorder.stop();
       setIsRecording(false);
+      setIsPaused(false);
     }
   };
 
@@ -334,7 +352,7 @@ function NuevaConsultaContent() {
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 py-4">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <span className="text-xl font-bold tracking-tight text-[#1A202C]">
             Medik<span className="text-[#0052FF]">AI</span>
@@ -352,17 +370,17 @@ function NuevaConsultaContent() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-        {/* Barra de Progreso */}
+        {/* Barra de Progreso / Stepper optimizada para móvil y escritorio */}
         <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-200/80">
           <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
-            <div className={`p-2 rounded-xl ${currentStep === 1 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
-              1. Selección Paciente
+            <div className={`p-2.5 rounded-xl transition-all ${currentStep === 1 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
+              <span className="block sm:inline">1. </span>Paciente
             </div>
-            <div className={`p-2 rounded-xl ${currentStep === 2 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
-              2. Dictado Scribe
+            <div className={`p-2.5 rounded-xl transition-all ${currentStep === 2 ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-400'}`}>
+              <span className="block sm:inline">2. </span>Toma de Notas
             </div>
-            <div className={`p-2 rounded-xl ${currentStep === 3 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
-              3. SOAP y Receta
+            <div className={`p-2.5 rounded-xl transition-all ${currentStep === 3 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
+              <span className="block sm:inline">3. </span>SOAP y Receta
             </div>
           </div>
         </div>
@@ -392,7 +410,9 @@ function NuevaConsultaContent() {
             loading={loading}
             onStartRecording={startRecording}
             onStopRecording={stopRecording}
-            patientName={`${selectedPatient?.first_name} ${selectedPatient?.last_name}`}
+            onPauseRecording={pauseRecording}
+            onResumeRecording={resumeRecording}
+            patientName={selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : undefined}
             patientDob={selectedPatient?.date_of_birth}
           />
         )}

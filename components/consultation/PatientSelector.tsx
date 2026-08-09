@@ -8,6 +8,8 @@ interface Patient {
   first_name: string;
   last_name: string;
   date_of_birth?: string;
+  phone?: string | null;
+  email?: string | null;
   gender?: string;
   blood_type?: string;
   allergies?: string[];
@@ -22,6 +24,8 @@ interface PatientSelectorProps {
     first_name: string;
     last_name: string;
     date_of_birth: string;
+    phone?: string;
+    email?: string;
     gender: string;
     blood_type: string;
     allergies: string[];
@@ -41,10 +45,13 @@ export default function PatientSelector({
 }: PatientSelectorProps) {
   const router = useRouter();
   const [isCreatingPatient, setIsCreatingPatient] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newPatient, setNewPatient] = useState({
     first_name: '',
     last_name: '',
     date_of_birth: '',
+    phone: '',
+    email: '',
     gender: 'other',
     blood_type: 'O+',
     allergies: '',
@@ -53,36 +60,42 @@ export default function PatientSelector({
 
   const handleSubmitNew = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    // Convierte las cadenas separadas por comas en arreglos válidos para PostgreSQL (text[])
-    const formattedPatient = {
-      ...newPatient,
-      allergies: newPatient.allergies
-        ? newPatient.allergies.split(',').map((s) => s.trim()).filter(Boolean)
-        : [],
-      chronic_conditions: newPatient.chronic_conditions
-        ? newPatient.chronic_conditions.split(',').map((s) => s.trim()).filter(Boolean)
-        : [],
-    };
+    try {
+      const formattedPatient = {
+        ...newPatient,
+        allergies: newPatient.allergies
+          ? newPatient.allergies.split(',').map((s) => s.trim()).filter(Boolean)
+          : [],
+        chronic_conditions: newPatient.chronic_conditions
+          ? newPatient.chronic_conditions.split(',').map((s) => s.trim()).filter(Boolean)
+          : [],
+      };
 
-    await onCreatePatient(formattedPatient);
-    setIsCreatingPatient(false);
-    setNewPatient({
-      first_name: '',
-      last_name: '',
-      date_of_birth: '',
-      gender: 'other',
-      blood_type: 'O+',
-      allergies: '',
-      chronic_conditions: '',
-    });
+      await onCreatePatient(formattedPatient);
+      setIsCreatingPatient(false);
+      setNewPatient({
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        phone: '',
+        email: '',
+        gender: 'other',
+        blood_type: 'O+',
+        allergies: '',
+        chronic_conditions: '',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+    <div className="rounded-2xl bg-white p-5 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">
+          <h2 className="text-base sm:text-lg font-bold text-slate-800">
             {isCreatingPatient ? 'Registrar Nuevo Paciente' : 'Seleccionar Paciente de la Consulta'}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -92,7 +105,7 @@ export default function PatientSelector({
         <button
           type="button"
           onClick={() => setIsCreatingPatient(!isCreatingPatient)}
-          className="text-xs font-semibold text-[#0052FF] hover:text-[#0043D6] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-all"
+          className="self-start sm:self-auto text-xs font-semibold text-[#0052FF] hover:text-[#0043D6] bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition-all"
         >
           {isCreatingPatient ? '← Volver a Selección' : '+ Nuevo Paciente'}
         </button>
@@ -107,7 +120,8 @@ export default function PatientSelector({
                 type="text"
                 placeholder="Ej. María"
                 required
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                /* text-base en móvil previene el zoom automático en iOS */
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.first_name}
                 onChange={(e) => setNewPatient({ ...newPatient, first_name: e.target.value })}
               />
@@ -118,9 +132,36 @@ export default function PatientSelector({
                 type="text"
                 placeholder="Ej. López Pérez"
                 required
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.last_name}
                 onChange={(e) => setNewPatient({ ...newPatient, last_name: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Teléfono <span className="text-slate-400 font-normal lowercase">(opcional)</span>
+              </label>
+              <input
+                type="tel"
+                placeholder="Ej. +52 55 1234 5678"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                value={newPatient.phone}
+                onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                Correo Electrónico <span className="text-slate-400 font-normal lowercase">(opcional)</span>
+              </label>
+              <input
+                type="email"
+                placeholder="paciente@ejemplo.com"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                value={newPatient.email}
+                onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
               />
             </div>
           </div>
@@ -131,7 +172,7 @@ export default function PatientSelector({
               <input
                 type="date"
                 required
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.date_of_birth}
                 onChange={(e) => setNewPatient({ ...newPatient, date_of_birth: e.target.value })}
               />
@@ -139,7 +180,7 @@ export default function PatientSelector({
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Género</label>
               <select
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.gender}
                 onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
               >
@@ -151,7 +192,7 @@ export default function PatientSelector({
             <div>
               <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Tipo de Sangre</label>
               <select
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.blood_type}
                 onChange={(e) => setNewPatient({ ...newPatient, blood_type: e.target.value })}
               >
@@ -173,7 +214,7 @@ export default function PatientSelector({
               <input
                 type="text"
                 placeholder="Ej. Penicilina, Polvo, Marisco"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.allergies}
                 onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
               />
@@ -183,7 +224,7 @@ export default function PatientSelector({
               <input
                 type="text"
                 placeholder="Ej. Hipertensión, Diabetes Tipo 2"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.chronic_conditions}
                 onChange={(e) => setNewPatient({ ...newPatient, chronic_conditions: e.target.value })}
               />
@@ -192,9 +233,10 @@ export default function PatientSelector({
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-[#00D09C] py-3 text-sm font-semibold text-slate-900 shadow-md hover:bg-[#00B88A] transition-all"
+            disabled={isSubmitting}
+            className="w-full rounded-xl bg-[#00D09C] py-3.5 text-sm font-semibold text-slate-900 shadow-md hover:bg-[#00B88A] active:scale-[0.99] disabled:opacity-60 transition-all"
           >
-            Guardar Paciente y Seleccionar
+            {isSubmitting ? 'Guardando paciente...' : 'Guardar Paciente y Seleccionar'}
           </button>
         </form>
       ) : (
@@ -205,7 +247,6 @@ export default function PatientSelector({
                 Buscar o Seleccionar Paciente Registrado
               </label>
 
-              {/* BOTÓN VER EXPEDIENTE CLÍNICO */}
               {selectedPatient && (
                 <button
                   type="button"
@@ -218,14 +259,14 @@ export default function PatientSelector({
             </div>
 
             <select
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
               value={selectedPatient?.id || ''}
               onChange={(e) => onSelectPatient(e.target.value)}
             >
               <option value="">-- Selecciona un paciente de la lista --</option>
               {patients.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.first_name} {p.last_name} 
+                  {p.first_name} {p.last_name} {p.phone ? `(${p.phone})` : ''}
                 </option>
               ))}
             </select>

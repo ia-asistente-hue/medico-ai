@@ -9,6 +9,8 @@ interface Patient {
   first_name: string;
   last_name: string;
   date_of_birth: string;
+  phone?: string | null;
+  email?: string | null;
   gender: string;
   blood_type: string;
   allergies: string[];
@@ -145,7 +147,7 @@ export default function ExpedienteClinicoPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 font-sans">
       {/* BOTÓN VOLVER & ENCABEZADO */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
@@ -164,11 +166,8 @@ export default function ExpedienteClinicoPage() {
         </div>
 
         <button
-         /* onClick={() => router.push(`/consulta/nueva?patient_id=${patient.id}`)}*/
-          
-         onClick={() => router.push(`/consulta/nueva?patient_id=${patient.id}&auto_start=true`)}
- 
-         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all"
+          onClick={() => router.push(`/consulta/nueva?patient_id=${patient.id}&auto_start=true`)}
+          className="px-4 py-2 bg-[#0052FF] hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all"
         >
           + Nueva Consulta
         </button>
@@ -213,7 +212,7 @@ export default function ExpedienteClinicoPage() {
           onClick={() => setActiveTab('historial')}
           className={`pb-2 transition-all ${
             activeTab === 'historial'
-              ? 'border-b-2 border-blue-600 text-blue-600'
+              ? 'border-b-2 border-[#0052FF] text-[#0052FF]'
               : 'hover:text-slate-900'
           }`}
         >
@@ -223,7 +222,7 @@ export default function ExpedienteClinicoPage() {
           onClick={() => setActiveTab('recetas')}
           className={`pb-2 transition-all ${
             activeTab === 'recetas'
-              ? 'border-b-2 border-blue-600 text-blue-600'
+              ? 'border-b-2 border-[#0052FF] text-[#0052FF]'
               : 'hover:text-slate-900'
           }`}
         >
@@ -233,7 +232,7 @@ export default function ExpedienteClinicoPage() {
           onClick={() => setActiveTab('fichar')}
           className={`pb-2 transition-all ${
             activeTab === 'fichar'
-              ? 'border-b-2 border-blue-600 text-blue-600'
+              ? 'border-b-2 border-[#0052FF] text-[#0052FF]'
               : 'hover:text-slate-900'
           }`}
         >
@@ -274,7 +273,7 @@ export default function ExpedienteClinicoPage() {
                         Consulta Médica — {dateStr}
                       </span>
                       {enc.soap_notes?.assessment && (
-                        <p className="text-xs text-blue-600 font-semibold mt-0.5">
+                        <p className="text-xs text-[#0052FF] font-semibold mt-0.5">
                           Diagnóstico: {enc.soap_notes.assessment}
                         </p>
                       )}
@@ -374,7 +373,7 @@ export default function ExpedienteClinicoPage() {
                   >
                     <div>
                       <p className="font-bold text-slate-800">
-                        Receta Código: <span className="font-mono text-blue-600">{rx.prescription_code}</span>
+                        Receta Código: <span className="font-mono text-[#0052FF]">{rx.prescription_code}</span>
                       </p>
                       <p className="text-slate-500 mt-0.5">
                         Emisión: {new Date(enc.created_at).toLocaleDateString('es-ES')}
@@ -387,7 +386,7 @@ export default function ExpedienteClinicoPage() {
 
                     <button
                       onClick={() => router.push(`/recetas/${rx.id}`)}
-                      className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold rounded-lg transition-colors text-[11px]"
+                      className="px-3 py-1.5 bg-blue-50 text-[#0052FF] hover:bg-blue-100 font-semibold rounded-lg transition-colors text-[11px]"
                     >
                       Ver PDF
                     </button>
@@ -402,10 +401,32 @@ export default function ExpedienteClinicoPage() {
       {activeTab === 'fichar' && (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4 text-xs">
           <h3 className="font-bold text-slate-800 text-sm border-b pb-2 border-slate-100">
-            Ficha Demográfica y Contacto de Emergencia
+            Ficha Demográfica y Contacto
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className="text-slate-500 block">Teléfono:</span>
+              {patient.phone ? (
+                <a href={`tel:${patient.phone}`} className="font-semibold text-[#0052FF] hover:underline">
+                  📞 {patient.phone}
+                </a>
+              ) : (
+                <span className="text-slate-400 italic">No registrado</span>
+              )}
+            </div>
+
+            <div>
+              <span className="text-slate-500 block">Correo Electrónico:</span>
+              {patient.email ? (
+                <a href={`mailto:${patient.email}`} className="font-semibold text-[#0052FF] hover:underline">
+                  ✉️ {patient.email}
+                </a>
+              ) : (
+                <span className="text-slate-400 italic">No registrado</span>
+              )}
+            </div>
+
             <div>
               <span className="text-slate-500 block">Fecha de Nacimiento:</span>
               <span className="font-semibold text-slate-800">{patient.date_of_birth}</span>

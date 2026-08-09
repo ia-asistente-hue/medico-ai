@@ -34,6 +34,55 @@ export interface Database {
           email?: string | null
         }
       }
+      patients: {
+        Row: {
+          id: string
+          doctor_id: string
+          first_name: string
+          last_name: string
+          date_of_birth: string
+          phone: string | null
+          email: string | null
+          gender: 'male' | 'female' | 'other' | null
+          blood_type: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
+          allergies: string[] | null
+          chronic_conditions: string[] | null
+          emergency_contact: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Insert: {
+          id?: string
+          doctor_id: string
+          first_name: string
+          last_name: string
+          date_of_birth: string
+          phone?: string | null
+          email?: string | null
+          gender?: 'male' | 'female' | 'other' | null
+          blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
+          allergies?: string[] | null
+          chronic_conditions?: string[] | null
+          emergency_contact?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          doctor_id?: string
+          first_name?: string
+          last_name?: string
+          date_of_birth?: string
+          phone?: string | null
+          email?: string | null
+          gender?: 'male' | 'female' | 'other' | null
+          blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
+          allergies?: string[] | null
+          chronic_conditions?: string[] | null
+          emergency_contact?: Json | null
+          updated_at?: string
+        }
+      }
       encounters: {
         Row: {
           id: string
