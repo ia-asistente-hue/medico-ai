@@ -1,6 +1,7 @@
+// app/medico-ai/components/consultation/PatientSelector.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Patient {
@@ -46,6 +47,11 @@ export default function PatientSelector({
   const router = useRouter();
   const [isCreatingPatient, setIsCreatingPatient] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Estados para la búsqueda por texto
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   const [newPatient, setNewPatient] = useState({
     first_name: '',
     last_name: '',
@@ -57,6 +63,17 @@ export default function PatientSelector({
     allergies: '',
     chronic_conditions: '',
   });
+
+  // Filtrar pacientes según lo que escriba en el buscador
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery.trim()) return patients;
+    const query = searchQuery.toLowerCase();
+    return patients.filter((p) => {
+      const fullName = `${p.first_name} ${p.last_name}`.toLowerCase();
+      const phone = p.phone ? p.phone.toLowerCase() : '';
+      return fullName.includes(query) || phone.includes(query);
+    });
+  }, [patients, searchQuery]);
 
   const handleSubmitNew = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +137,6 @@ export default function PatientSelector({
                 type="text"
                 placeholder="Ej. María"
                 required
-                /* text-base en móvil previene el zoom automático en iOS */
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 value={newPatient.first_name}
                 onChange={(e) => setNewPatient({ ...newPatient, first_name: e.target.value })}
@@ -184,9 +200,9 @@ export default function PatientSelector({
                 value={newPatient.gender}
                 onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
               >
-                <option value="female">Femenino</option>
-                <option value="male">Masculino</option>
-                <option value="other">Otro</option>
+                <option value="femenino">Femenino</option>
+                <option value="masculino">Masculino</option>
+                <option value="otro">Otro</option>
               </select>
             </div>
             <div>
@@ -241,7 +257,7 @@ export default function PatientSelector({
         </form>
       ) : (
         <div className="space-y-5">
-          <div>
+          <div className="relative">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-semibold text-slate-600 uppercase">
                 Buscar o Seleccionar Paciente Registrado
@@ -258,18 +274,55 @@ export default function PatientSelector({
               )}
             </div>
 
-            <select
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-              value={selectedPatient?.id || ''}
-              onChange={(e) => onSelectPatient(e.target.value)}
-            >
-              <option value="">-- Selecciona un paciente de la lista --</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.first_name} {p.last_name} {p.phone ? `(${p.phone})` : ''}
-                </option>
-              ))}
-            </select>
+            {/* Input de búsqueda interactivo */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="🔍 Escribe el nombre o teléfono del paciente..."
+                value={
+                  selectedPatient && !isDropdownOpen
+                    ? `${selectedPatient.first_name} ${selectedPatient.last_name} ${selectedPatient.phone ? `(${selectedPatient.phone})` : ''}`
+                    : searchQuery
+                }
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                  if (selectedPatient) {
+                    onSelectPatient(''); // Limpiar selección si empieza a buscar de nuevo
+                  }
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
+              />
+
+              {/* Lista desplegable de resultados */}
+              {isDropdownOpen && (
+                <div className="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+                  {filteredPatients.length === 0 ? (
+                    <div className="p-3 text-xs text-slate-500 italic text-center">
+                      No se encontraron pacientes con ese criterio.
+                    </div>
+                  ) : (
+                    filteredPatients.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          onSelectPatient(p.id);
+                          setSearchQuery('');
+                          setIsDropdownOpen(false);
+                        }}
+                        className="cursor-pointer px-4 py-2.5 text-xs text-slate-800 hover:bg-blue-50 hover:text-[#0052FF] transition-colors border-b border-slate-50 last:border-none flex items-center justify-between"
+                      >
+                        <span className="font-semibold">
+                          {p.first_name} {p.last_name}
+                        </span>
+                        {p.phone && <span className="text-slate-400 font-mono">{p.phone}</span>}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <button

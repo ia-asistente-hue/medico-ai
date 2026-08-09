@@ -1,3 +1,4 @@
+//app/pacientes/[id]/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -130,6 +131,16 @@ export default function ExpedienteClinicoPage() {
     return age;
   };
 
+  const formatGender = (gender: string) => {
+    if (!gender) return 'No especificado';
+    const map: Record<string, string> = {
+      female: 'Femenino',
+      male: 'Masculino',
+      other: 'Otro',
+    };
+    return map[gender.toLowerCase()] || gender;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-slate-500 text-sm">
@@ -160,14 +171,38 @@ export default function ExpedienteClinicoPage() {
           <h1 className="text-xl font-bold text-slate-900">
             {patient.first_name} {patient.last_name}
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {calculateAge(patient.date_of_birth)} años • Sexo: {patient.gender || 'No especificado'} • Tipo de Sangre: <span className="font-semibold text-rose-600">{patient.blood_type || 'N/A'}</span>
-          </p>
+          
+          {/* INFORMACIÓN GENERAL EN CABECERA (EDAD, SEXO, SANGRE, TELÉFONO Y CORREO) */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-slate-500 font-medium">
+            <span>{calculateAge(patient.date_of_birth)} años</span>
+            <span>•</span>
+            <span>Sexo: {formatGender(patient.gender)}</span>
+            <span>•</span>
+            <span>Tipo de Sangre: <span className="font-semibold text-rose-600">{patient.blood_type || 'N/A'}</span></span>
+
+            {patient.phone && (
+              <>
+                <span>•</span>
+                <a href={`tel:${patient.phone}`} className="text-[#0052FF] hover:underline flex items-center gap-1">
+                  📞 {patient.phone}
+                </a>
+              </>
+            )}
+
+            {patient.email && (
+              <>
+                <span>•</span>
+                <a href={`mailto:${patient.email}`} className="text-[#0052FF] hover:underline flex items-center gap-1">
+                  ✉️ {patient.email}
+                </a>
+              </>
+            )}
+          </div>
         </div>
 
         <button
           onClick={() => router.push(`/consulta/nueva?patient_id=${patient.id}&auto_start=true`)}
-          className="px-4 py-2 bg-[#0052FF] hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all"
+          className="px-4 py-2 bg-[#0052FF] hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all shrink-0"
         >
           + Nueva Consulta
         </button>
@@ -434,7 +469,7 @@ export default function ExpedienteClinicoPage() {
 
             <div>
               <span className="text-slate-500 block">Sexo:</span>
-              <span className="font-semibold text-slate-800">{patient.gender || 'No registrado'}</span>
+              <span className="font-semibold text-slate-800">{formatGender(patient.gender)}</span>
             </div>
 
             <div>

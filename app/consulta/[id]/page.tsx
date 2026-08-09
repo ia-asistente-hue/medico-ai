@@ -1,3 +1,4 @@
+//app/consulta/[id]/page.tsx
 'use client';
 
 import { useState, useEffect, use } from 'react';

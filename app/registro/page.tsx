@@ -1,3 +1,5 @@
+//app/registro/page.tsx
+
 'use client';
 
 import { useState } from 'react';
@@ -65,8 +67,8 @@ export default function RegisterPage() {
         throw new Error('No se pudo crear la cuenta de usuario.');
       }
 
-      // Redirigir al módulo principal
-      router.push('/pacientes');
+      // Redirigir al inicio de sesión
+      router.push('/login');
     } catch (err: any) {
       setErrorMessage(err.message || 'Error durante el registro.');
     } finally {
@@ -95,7 +97,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form className="space-y-4" onSubmit={handleRegister}>
+          <form className="space-y-4" onSubmit={handleRegister} autoComplete="off">
             {/* Nombre y Apellidos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -104,6 +106,7 @@ export default function RegisterPage() {
                   name="firstName"
                   type="text"
                   required
+                  autoComplete="off"
                   value={formData.firstName}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -116,6 +119,7 @@ export default function RegisterPage() {
                   name="lastName"
                   type="text"
                   required
+                  autoComplete="off"
                   value={formData.lastName}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -131,6 +135,7 @@ export default function RegisterPage() {
                 <input
                   name="specialty"
                   type="text"
+                  autoComplete="off"
                   value={formData.specialty}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -142,6 +147,7 @@ export default function RegisterPage() {
                 <input
                   name="medicalLicense"
                   type="text"
+                  autoComplete="off"
                   value={formData.medicalLicense}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -157,6 +163,7 @@ export default function RegisterPage() {
                 <input
                   name="phone"
                   type="tel"
+                  autoComplete="off"
                   value={formData.phone}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -169,6 +176,7 @@ export default function RegisterPage() {
                   name="email"
                   type="email"
                   required
+                  autoComplete="username"
                   value={formData.email}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -185,6 +193,7 @@ export default function RegisterPage() {
                   name="password"
                   type="password"
                   required
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
@@ -197,6 +206,7 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   type="password"
                   required
+                  autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
