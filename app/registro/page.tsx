@@ -44,43 +44,28 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1. Crear el usuario en Supabase Auth
+      // Registrar en Supabase Auth pasando metadata para que el Trigger de BD cree el Perfil y Doctor automáticamente
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            phone: formData.phone || null,
+            specialty: formData.specialty || 'General',
+            medical_license: formData.medicalLicense || '',
+          },
+        },
       });
 
       if (authError) throw authError;
 
-      const user = authData.user;
-      if (!user) throw new Error('No se pudo crear la cuenta de usuario.');
+      if (!authData.user) {
+        throw new Error('No se pudo crear la cuenta de usuario.');
+      }
 
-      // 2. Insertar/Actualizar en la tabla 'profiles'
-      const { error: profileError } = await supabase.from('profiles').upsert([
-        {
-          id: user.id,
-          email: formData.email,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone || null,
-          role: 'doctor',
-        },
-      ]);
-
-      if (profileError) throw profileError;
-
-      // 3. Insertar en la tabla 'doctors' vinculada a 'profiles(id)'
-      const { error: doctorError } = await supabase.from('doctors').insert([
-        {
-          profile_id: user.id,
-          specialty: formData.specialty || 'General',
-          medical_license: formData.medicalLicense,
-        },
-      ]);
-
-      if (doctorError) throw doctorError;
-
-      // 4. Redirigir al módulo principal
+      // Redirigir al módulo principal
       router.push('/pacientes');
     } catch (err: any) {
       setErrorMessage(err.message || 'Error durante el registro.');
