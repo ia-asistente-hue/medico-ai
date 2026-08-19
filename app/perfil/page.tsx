@@ -1,4 +1,3 @@
-// app/perfil/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -36,6 +35,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(null);
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -66,15 +66,16 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           return;
         }
         setUserId(user.id);
+        setUserEmail(user.email || null);
 
-        // 1. Consultar tabla profiles (MODIFICADO: maybeSingle)
+        // 1. Consultar tabla profiles
         const { data: profileData } = await supabase
           .from('profiles')
           .select('first_name, last_name, phone')
           .eq('id', user.id)
           .maybeSingle();
 
-        // 2. Consultar tabla doctors (MODIFICADO: maybeSingle)
+        // 2. Consultar tabla doctors
         const { data: doctorData, error: doctorError } = await supabase
           .from('doctors')
           .select('*')
@@ -170,11 +171,12 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         finalLogoUrl = publicURLData.publicUrl;
       }
 
-      // 1. Upsert en profiles
+      // 1. Upsert en profiles (INCLUYE EL EMAIL)
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: userId,
+          email: userEmail,
           first_name: form.first_name,
           last_name: form.last_name,
           phone: form.phone,
@@ -183,7 +185,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
 
       if (profileError) throw profileError;
 
-      // 2. Upsert en doctors (MODIFICADO: se asegura una UUID limpia si es creación)
+      // 2. Upsert en doctors
       const doctorPayload: any = {
         profile_id: userId,
         medical_license: form.medical_license,
