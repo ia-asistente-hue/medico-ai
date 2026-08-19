@@ -1,5 +1,4 @@
 // app/perfil/page.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -68,12 +67,14 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         }
         setUserId(user.id);
 
+        // 1. Consultar tabla profiles
         const { data: profileData } = await supabase
           .from('profiles')
           .select('first_name, last_name, phone')
           .eq('id', user.id)
           .single();
 
+        // 2. Consultar tabla doctors
         const { data: doctorData, error: doctorError } = await supabase
           .from('doctors')
           .select('*')
@@ -89,22 +90,29 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           if (doctorData.clinic_logo_url) {
             setLogoUrl(doctorData.clinic_logo_url);
           }
-          setForm({
-            first_name: profileData?.first_name || '',
-            last_name: profileData?.last_name || '',
-            phone: doctorData.phone || profileData?.phone || '',
-            medical_license: doctorData.medical_license || '',
-            specialty_license: doctorData.specialty_license || '',
-            specialty: doctorData.specialty || 'General',
-            university: doctorData.university || '',
-            clinic_name: doctorData.clinic_name || '',
-            street_address: doctorData.street_address || '',
-            neighborhood: doctorData.neighborhood || '',
-            city: doctorData.city || '',
-            state: doctorData.state || '',
-            postal_code: doctorData.postal_code || '',
-          });
         }
+
+        // 3. Resolución de nombres (Prioridad: Profiles -> Metadata -> Vacío)
+        const firstName = profileData?.first_name || user.user_metadata?.first_name || '';
+        const lastName = profileData?.last_name || user.user_metadata?.last_name || '';
+        const phone = doctorData?.phone || profileData?.phone || '';
+
+        setForm({
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone,
+          medical_license: doctorData?.medical_license || '',
+          specialty_license: doctorData?.specialty_license || '',
+          specialty: doctorData?.specialty || 'General',
+          university: doctorData?.university || '',
+          clinic_name: doctorData?.clinic_name || '',
+          street_address: doctorData?.street_address || '',
+          neighborhood: doctorData?.neighborhood || '',
+          city: doctorData?.city || '',
+          state: doctorData?.state || '',
+          postal_code: doctorData?.postal_code || '',
+        });
+
       } catch (err: any) {
         setErrorMessage('Error al cargar la información: ' + err.message);
       } finally {
@@ -161,20 +169,20 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         finalLogoUrl = publicURLData.publicUrl;
       }
 
-      // 1. Actualizar perfil
+      // 1. Upsert o Update en profiles
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: userId,
           first_name: form.first_name,
           last_name: form.last_name,
           phone: form.phone,
           updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId);
+        });
 
       if (profileError) throw profileError;
 
-      // 2. Upsert en la tabla doctors
+      // 2. Upsert en doctors
       const { error: doctorError } = await supabase
         .from('doctors')
         .upsert({
@@ -198,7 +206,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
       if (doctorError) throw doctorError;
 
       if (mode === 'onboarding') {
-        // En modo Onboarding se redirige directamente al dashboard
         router.push('/consulta/nueva');
       } else {
         setLogoUrl(finalLogoUrl);
@@ -222,7 +229,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
-      {/* Muestra encabezado solo en modo Profile */}
       {mode === 'profile' && (
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-4">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
