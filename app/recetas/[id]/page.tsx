@@ -27,27 +27,23 @@ interface Medicamento {
 interface PrescriptionDetail {
   id: string;
   prescription_code: string;
-  instructions: string;
+  instructions: string | null;
   medications: Medicamento[];
   created_at: string;
-  encounters?: {
-    id: string;
-    created_at: string;
-    patients?: {
+  patient: {
+    first_name: string;
+    last_name: string;
+    date_of_birth?: string;
+    gender?: string;
+    blood_type?: string;
+  } | null;
+  doctor: {
+    medical_license: string;
+    specialty: string;
+    digital_signature_url: string | null;
+    profile: {
       first_name: string;
       last_name: string;
-      date_of_birth: string;
-      gender: string;
-      blood_type: string;
-    } | null;
-    doctors?: {
-      medical_license?: string;
-      specialty?: string;
-      digital_signature_url?: string | null;
-      profiles?: {
-        first_name: string;
-        last_name: string;
-      } | null;
     } | null;
   } | null;
 }
@@ -113,22 +109,26 @@ export default function RecetaDetailPage() {
         setErrorMsg('La receta solicitada no existe o no se encuentra disponible.');
         return;
       }
-      // --- CORRECCIÓN DE TIPOS Y DESEMPAQUETADO ---
-      // 1. Extraemos encounter de forma segura
 
+      // 1. Extraemos encounter
       const encounterData = Array.isArray(data.encounters) ? data.encounters[0] : data.encounters;
-      // 2. Extraemos doctor
+
+      // 2. Extraemos paciente
+      const rawPatient = encounterData && Array.isArray(encounterData.patients) 
+        ? encounterData.patients[0] 
+        : encounterData?.patients;
+
+      // 3. Extraemos doctor
       const rawDoctor = encounterData && Array.isArray(encounterData.doctors) 
         ? encounterData.doctors[0] 
         : encounterData?.doctors;
 
-      // 3. Extraemos profiles del doctor (aquí ocurría el error si venía como arreglo)
+      // 4. Extraemos profile del doctor
       const rawProfile = rawDoctor && Array.isArray(rawDoctor.profiles) 
         ? rawDoctor.profiles[0] 
         : rawDoctor?.profiles;
 
-      // 4. Parse de medicamentos
-
+      // 5. Parsear medicamentos
       let medicationsParsed: Medicamento[] = [];
       if (typeof data.medications === 'string') {
         try {
@@ -139,22 +139,22 @@ export default function RecetaDetailPage() {
       } else if (Array.isArray(data.medications)) {
         medicationsParsed = data.medications;
       }
-      // 5. Mapeo final asegurando compatibilidad con PrescriptionDetail
 
-      const formattedData: PrescriptionDetail = {
-        ...data,
+      // 6. Asignamos un objeto limpio coincidente con PrescriptionDetail
+      setPrescription({
+        id: data.id,
+        prescription_code: data.prescription_code,
+        instructions: data.instructions,
+        created_at: data.created_at,
         medications: medicationsParsed,
-        encounters: encounterData ? {
-          ...encounterData,
-          patients: Array.isArray(encounterData.patients) ? encounterData.patients[0] : encounterData.patients,
-                    doctors: rawDoctor ? {
-            ...rawDoctor,
-            profiles: rawProfile || null,
+        patient: rawPatient || null,
+        doctor: rawDoctor ? {
+          medical_license: rawDoctor.medical_license || '',
+          specialty: rawDoctor.specialty || '',
+          digital_signature_url: rawDoctor.digital_signature_url || null,
+          profile: rawProfile || null,
           } : null,
-        } : null
-      };
-
-      setPrescription(formattedData);
+      });
     } catch (err: any) {
       setErrorMsg(err.message || 'Ocurrió un error al cargar la receta.');
     } finally {
@@ -200,9 +200,9 @@ export default function RecetaDetailPage() {
     );
   }
 
-  const patient = prescription.encounters?.patients;
-  const doctor = prescription.encounters?.doctors;
-  const doctorProfile = doctor?.profiles;
+  const patient = prescription.patient;
+  const doctor = prescription.doctor;
+  const doctorProfile = doctor?.profile;
 
   const doctorNombre = doctorProfile
     ? `Dr(a). ${doctorProfile.first_name} ${doctorProfile.last_name}`
