@@ -1,4 +1,5 @@
 //app/recetas/[id]/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -110,8 +111,10 @@ export default function RecetaDetailPage() {
         return;
       }
 
-      // 1. Extraemos encounter
-      const encounterData = Array.isArray(data.encounters) ? data.encounters[0] : data.encounters;
+      // 1. Extraemos encounter asegurando objeto único
+      const encounterData: any = Array.isArray(data.encounters) 
+        ? data.encounters[0] 
+        : data.encounters;
 
       // 2. Extraemos paciente
       const rawPatient = encounterData && Array.isArray(encounterData.patients) 
@@ -123,10 +126,11 @@ export default function RecetaDetailPage() {
         ? encounterData.doctors[0] 
         : encounterData?.doctors;
 
-      // 4. Extraemos profile del doctor
-      const rawProfile = rawDoctor && Array.isArray(rawDoctor.profiles) 
-        ? rawDoctor.profiles[0] 
-        : rawDoctor?.profiles;
+      // 4. Extraemos profile usando casting seguro a 'any' en este paso dinámico
+      const docObj = rawDoctor as any;
+      const rawProfile = docObj && Array.isArray(docObj.profiles) 
+        ? docObj.profiles[0] 
+        : docObj?.profiles;
 
       // 5. Parsear medicamentos
       let medicationsParsed: Medicamento[] = [];
@@ -140,7 +144,7 @@ export default function RecetaDetailPage() {
         medicationsParsed = data.medications;
       }
 
-      // 6. Asignamos un objeto limpio coincidente con PrescriptionDetail
+      // 6. Asignamos al estado con tipado estricto
       setPrescription({
         id: data.id,
         prescription_code: data.prescription_code,
@@ -153,7 +157,7 @@ export default function RecetaDetailPage() {
           specialty: rawDoctor.specialty || '',
           digital_signature_url: rawDoctor.digital_signature_url || null,
           profile: rawProfile || null,
-          } : null,
+        } : null,
       });
     } catch (err: any) {
       setErrorMsg(err.message || 'Ocurrió un error al cargar la receta.');
@@ -210,7 +214,6 @@ export default function RecetaDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12 print:bg-white print:p-0 print:pb-0">
-      {/* Reglas CSS para la impresión PDF */}
       <style jsx global>{`
         @media print {
           @page {
@@ -227,7 +230,7 @@ export default function RecetaDetailPage() {
         }
       `}</style>
 
-      {/* BARRA SUPERIOR (SE OCULTA EN IMPRESIÓN) */}
+      {/* BARRA SUPERIOR */}
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 py-4 print:hidden">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <button
