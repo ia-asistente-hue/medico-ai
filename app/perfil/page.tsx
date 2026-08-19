@@ -114,6 +114,13 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         });
 
       } catch (err: any) {
+        console.error("💥 Error detallado en handleSave:", {
+          message: err.message,
+          details: err.details,
+          hint: err.hint,
+          code: err.code,
+          fullError: err
+        });
         setErrorMessage('Error al cargar la información: ' + err.message);
       } finally {
         setLoading(false);
@@ -213,6 +220,13 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         setSuccessMessage('¡Perfil, datos profesionales y logotipo actualizados correctamente!');
       }
     } catch (err: any) {
+      console.error("💥 Error detallado en handleSave:", {
+        message: err.message,
+        details: err.details,
+        hint: err.hint,
+        code: err.code,
+        fullError: err
+      });
       setErrorMessage('Error al guardar los cambios: ' + err.message);
     } finally {
       setSaving(false);
