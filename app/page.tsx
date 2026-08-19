@@ -1,3 +1,7 @@
+//app/page.tsx
+
+export const dynamic = 'force-dynamic'; // <-- Añade esta línea al inicio del archivo
+
 'use client';
 
 import { useEffect } from 'react';
