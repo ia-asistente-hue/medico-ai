@@ -1,4 +1,4 @@
-//app/recetas/[id]/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -147,7 +147,7 @@ export default function RecetaDetailPage() {
         encounters: encounterData ? {
           ...encounterData,
           patients: Array.isArray(encounterData.patients) ? encounterData.patients[0] : encounterData.patients,
-                    doctors: rawDoctor ? {
+          doctors: rawDoctor ? {
             ...rawDoctor,
             profiles: rawProfile || null,
           } : null,
