@@ -1,3 +1,4 @@
+//app/onboarding/page.tsx
 'use client';
 
 import DoctorProfileFormView from '../perfil/page';

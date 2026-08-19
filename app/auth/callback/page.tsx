@@ -1,3 +1,5 @@
+//app/auth/callback/page.tsx
+
 'use client';
 
 import { useEffect } from 'react';
@@ -9,18 +11,28 @@ export default function AuthCallbackPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    async function handleAuthCallback() {
-      // Obtener sesión tras el clic en el correo
-      const { data: { session } } = await supabase.auth.getSession();
-
+    // Escucha automáticamente el intercambio de tokens de la URL
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         router.push('/onboarding');
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         router.push('/login');
+      }
+    });
+
+    // Verificación de respaldo directa
+    async function checkExistingSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.push('/onboarding');
       }
     }
 
-    handleAuthCallback();
+    checkExistingSession();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router, supabase]);
 
   return (
