@@ -67,21 +67,21 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         }
         setUserId(user.id);
 
-        // 1. Consultar tabla profiles
+        // 1. Consultar tabla profiles (MODIFICADO: maybeSingle)
         const { data: profileData } = await supabase
           .from('profiles')
           .select('first_name, last_name, phone')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-        // 2. Consultar tabla doctors
+        // 2. Consultar tabla doctors (MODIFICADO: maybeSingle)
         const { data: doctorData, error: doctorError } = await supabase
           .from('doctors')
           .select('*')
           .eq('profile_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (doctorError && doctorError.code !== 'PGRST116') {
+        if (doctorError) {
           throw doctorError;
         }
 
@@ -114,13 +114,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         });
 
       } catch (err: any) {
-        console.error("💥 Error detallado en handleSave:", {
-          message: err.message,
-          details: err.details,
-          hint: err.hint,
-          code: err.code,
-          fullError: err
-        });
+        console.error("💥 Error al cargar información:", err);
         setErrorMessage('Error al cargar la información: ' + err.message);
       } finally {
         setLoading(false);
@@ -176,7 +170,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         finalLogoUrl = publicURLData.publicUrl;
       }
 
-      // 1. Upsert o Update en profiles
+      // 1. Upsert en profiles
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -189,28 +183,39 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
 
       if (profileError) throw profileError;
 
-      // 2. Upsert en doctors
-      const { error: doctorError } = await supabase
+      // 2. Upsert en doctors (MODIFICADO: se asegura una UUID limpia si es creación)
+      const doctorPayload: any = {
+        profile_id: userId,
+        medical_license: form.medical_license,
+        specialty_license: form.specialty_license,
+        specialty: form.specialty,
+        university: form.university,
+        phone: form.phone,
+        clinic_name: form.clinic_name,
+        street_address: form.street_address,
+        neighborhood: form.neighborhood,
+        city: form.city,
+        state: form.state,
+        postal_code: form.postal_code,
+        clinic_logo_url: finalLogoUrl,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (doctorId) {
+        doctorPayload.id = doctorId;
+      }
+
+      const { data: savedDoctor, error: doctorError } = await supabase
         .from('doctors')
-        .upsert({
-          ...(doctorId ? { id: doctorId } : {}),
-          profile_id: userId,
-          medical_license: form.medical_license,
-          specialty_license: form.specialty_license,
-          specialty: form.specialty,
-          university: form.university,
-          phone: form.phone,
-          clinic_name: form.clinic_name,
-          street_address: form.street_address,
-          neighborhood: form.neighborhood,
-          city: form.city,
-          state: form.state,
-          postal_code: form.postal_code,
-          clinic_logo_url: finalLogoUrl,
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(doctorPayload)
+        .select('id')
+        .single();
 
       if (doctorError) throw doctorError;
+
+      if (savedDoctor) {
+        setDoctorId(savedDoctor.id);
+      }
 
       if (mode === 'onboarding') {
         router.push('/consulta/nueva');
