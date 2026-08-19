@@ -1,3 +1,4 @@
+//app/pacientes/[id]/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -341,7 +342,7 @@ export default function ExpedienteClinicoPage() {
                             onClick={() => router.push(`/recetas/${enc.prescriptions?.id}`)}
                             className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors text-[11px]"
                           >
-                            📄 Ver / Descargar PDF Receta
+                            📄 Ver 
                           </button>
                         </div>
                       )}
@@ -388,7 +389,7 @@ export default function ExpedienteClinicoPage() {
                       onClick={() => router.push(`/recetas/${rx.id}`)}
                       className="px-3 py-1.5 bg-blue-50 text-[#0052FF] hover:bg-blue-100 font-semibold rounded-lg transition-colors text-[11px]"
                     >
-                      Ver PDF
+                      📄 Ver / Descargar PDF Receta
                     </button>
                   </div>
                 );

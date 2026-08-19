@@ -123,6 +123,9 @@ export interface Database {
           assessment?: string | null
           plan?: string | null
           summary?: string | null
+          weight_kg?: number | null; 
+          height_cm?: number | null; 
+          bmi?: number | null;       
           ai_model_version?: string | null
           is_finalized?: boolean
           created_at?: string
@@ -134,6 +137,9 @@ export interface Database {
           objective?: string | null
           assessment?: string | null
           plan?: string | null
+          weight_kg?: number | null; 
+          height_cm?: number | null; 
+          bmi?: number | null;    
           summary?: string | null
           ai_model_version?: string | null
           is_finalized?: boolean
