@@ -1,3 +1,5 @@
+// app/registro/page.tsx
+
 'use client';
 
 import { useState } from 'react';
@@ -7,7 +9,6 @@ import { createClient } from '@/lib/supabase';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -15,15 +16,12 @@ export default function RegisterPage() {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    phone: '',
-    specialty: 'General',
-    medicalLicense: '',
   });
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -44,31 +42,35 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Registrar en Supabase Auth pasando metadata para que el Trigger de BD cree el Perfil y Doctor automáticamente
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+      const supabase = createClient();
+
+      // Mapeo directo a los metadatos de Supabase Auth
+      const payloadAuth = {
+        email: formData.email.trim(),
         password: formData.password,
         options: {
           data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone: formData.phone || null,
-            specialty: formData.specialty || 'General',
-            medical_license: formData.medicalLicense || '',
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim(),
           },
         },
-      });
+      };
 
-      if (authError) throw authError;
+      const { data: authData, error: authError } = await supabase.auth.signUp(payloadAuth);
 
-      if (!authData.user) {
-        throw new Error('No se pudo crear la cuenta de usuario.');
+      if (authError) {
+        const detailedMsg = authError.message || (authError as any).error_description;
+        throw new Error(detailedMsg || 'No se pudo registrar el usuario.');
       }
 
-      // Redirigir al módulo principal
-      router.push('/pacientes');
+      if (!authData?.user) {
+        throw new Error('No se generó el usuario en Supabase Auth.');
+      }
+
+      router.push('/login');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Error durante el registro.');
+      console.error('💥 Excepción en registro:', err);
+      setErrorMessage(err.message || 'Error durante el proceso de registro.');
     } finally {
       setLoading(false);
     }
@@ -80,13 +82,11 @@ export default function RegisterPage() {
         <h1 className="text-3xl font-extrabold tracking-tight text-[#1A202C]">
           Medik<span className="text-[#0052FF]">AI</span>
         </h1>
-        <h2 className="mt-2 text-xl font-bold text-slate-800">Crea tu cuenta médica</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Registra tus datos profesionales para empezar a gestionar tus consultas.
-        </p>
+        <h2 className="mt-2 text-xl font-bold text-slate-800">Crea tu cuenta</h2>
+        <p className="mt-1 text-xs text-slate-500">Ingresa tus datos para comenzar.</p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-sm border border-slate-200/80 rounded-2xl sm:px-10">
           {errorMessage && (
             <div className="mb-6 rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700">
@@ -96,128 +96,82 @@ export default function RegisterPage() {
           )}
 
           <form className="space-y-4" onSubmit={handleRegister}>
-            {/* Nombre y Apellidos */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre(s) *</label>
-                <input
-                  name="firstName"
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="Ej. Carlos"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Apellido(s) *</label>
-                <input
-                  name="lastName"
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="Ej. Mendoza"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Nombre(s) *</label>
+              <input
+                name="firstName"
+                type="text"
+                required
+                value={formData.firstName}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
+                placeholder="Ej. Carlos"
+              />
             </div>
 
-            {/* Especialidad y Cédula */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Especialidad</label>
-                <input
-                  name="specialty"
-                  type="text"
-                  value={formData.specialty}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="Ej. Medicina General, Pediatría"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Cédula Profesional</label>
-                <input
-                  name="medicalLicense"
-                  type="text"
-                  value={formData.medicalLicense}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="Ej. 12345678"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Apellido(s) *</label>
+              <input
+                name="lastName"
+                type="text"
+                required
+                value={formData.lastName}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
+                placeholder="Ej. Mendoza"
+              />
             </div>
 
-            {/* Teléfono y Correo Electrónico */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Teléfono</label>
-                <input
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="Ej. +52 55 1234 5678"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Correo Electrónico *</label>
-                <input
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="doctor@ejemplo.com"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Correo Electrónico *</label>
+              <input
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
+                placeholder="doctor@ejemplo.com"
+              />
             </div>
 
-            {/* Contraseñas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Contraseña *</label>
-                <input
-                  name="password"
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Confirmar Contraseña *</label>
-                <input
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
-                  placeholder="••••••••"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Contraseña *</label>
+              <input
+                name="password"
+                type="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
+                placeholder="••••••••"
+              />
             </div>
 
-            {/* Botón de Enviar */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Confirmar Contraseña *</label>
+              <input
+                name="confirmPassword"
+                type="password"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-[#0052FF] focus:outline-none focus:ring-1 focus:ring-[#0052FF]"
+                placeholder="••••••••"
+              />
+            </div>
+
             <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-[#0052FF] hover:bg-blue-700 transition-all focus:outline-none disabled:opacity-50"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-[#0052FF] hover:bg-blue-700 transition-all focus:outline-none disabled:opacity-50"
               >
-                {loading ? 'Registrando cuenta...' : 'Crear Cuenta'}
+                {loading ? 'Creando cuenta...' : 'Registrarse'}
               </button>
             </div>
           </form>
 
-          {/* Enlace a Login */}
           <div className="mt-6 text-center text-xs text-slate-600">
             ¿Ya tienes una cuenta?{' '}
             <Link href="/login" className="font-semibold text-[#0052FF] hover:underline">
