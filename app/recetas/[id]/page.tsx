@@ -42,6 +42,7 @@ interface PrescriptionDetail {
     medical_license: string;
     specialty: string;
     digital_signature_url: string | null;
+    clinic_logo_url: string | null;
     profile: {
       first_name: string;
       last_name: string;
@@ -92,6 +93,7 @@ export default function RecetaDetailPage() {
               medical_license,
               specialty,
               digital_signature_url,
+              clinic_logo_url,
               profiles (
                 first_name,
                 last_name
@@ -156,6 +158,7 @@ export default function RecetaDetailPage() {
           medical_license: rawDoctor.medical_license || '',
           specialty: rawDoctor.specialty || '',
           digital_signature_url: rawDoctor.digital_signature_url || null,
+          clinic_logo_url: rawDoctor.clinic_logo_url || null,
           profile: rawProfile || null,
         } : null,
       });
@@ -257,20 +260,34 @@ export default function RecetaDetailPage() {
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none">
         <div className="rounded-2xl bg-white p-6 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-200/80 space-y-8 print:shadow-none print:border-none print:p-0 print:space-y-6">
-          
           {/* ENCABEZADO INSTITUCIONAL */}
           <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row justify-between items-start gap-4">
             <div className="space-y-1 max-w-xs sm:max-w-md">
+              
               <div className="flex items-center gap-2 mb-1">
-                <svg className="h-7 w-auto text-[#0052FF]" viewBox="0 0 120 60" fill="none">
-                  <path d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52" stroke="#00D09C" strokeWidth="6" strokeLinecap="round" />
-                  <circle cx="90" cy="54" r="4" fill="#00D09C" />
-                </svg>
+              {doctor?.clinic_logo_url ? (
+    <div className="h-28 w-auto flex items-center justify-center">
+      <img 
+        src={doctor.clinic_logo_url} 
+        alt="Logo Consultorio" 
+        className="max-h-28 max-w-[240px] object-contain" 
+      />
+    </div>
+  ) : (
+    <div className="h-24 w-auto flex items-center justify-center text-[#0052FF]">
+      <svg className="h-24 w-auto" viewBox="0 0 120 60" fill="none">
+        <path d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52" stroke="#00D09C" strokeWidth="6" strokeLinecap="round" />
+        <circle cx="90" cy="54" r="4" fill="#00D09C" />
+      </svg>
+    </div>
+  )}
                 <span className="text-lg font-bold tracking-tight text-[#1A202C]">
                   Medik<span className="text-[#0052FF]">AI</span>
                 </span>
               </div>
+              
+              
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 RECETA MÉDICA
               </h1>

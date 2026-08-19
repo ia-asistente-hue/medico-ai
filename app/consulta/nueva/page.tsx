@@ -3,6 +3,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 
 // Importación de componentes modulares
@@ -357,6 +358,13 @@ function NuevaConsultaContent() {
           <span className="text-xl font-bold tracking-tight text-[#1A202C]">
             Medik<span className="text-[#0052FF]">AI</span>
           </span>
+                    <div className="flex items-center gap-3">
+            <Link
+              href="/perfil"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-[#0052FF] transition-all"
+            >
+              Mi Perfil
+            </Link>
           <button
             onClick={async () => {
               await supabase.auth.signOut();
@@ -367,6 +375,7 @@ function NuevaConsultaContent() {
             Cerrar Sesión
           </button>
         </div>
+      </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">

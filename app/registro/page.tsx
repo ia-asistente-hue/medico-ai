@@ -67,7 +67,7 @@ export default function RegisterPage() {
         throw new Error('No se generó el usuario en Supabase Auth.');
       }
 
-      router.push('/login');
+      router.push('/verify-email');
     } catch (err: any) {
       console.error('💥 Excepción en registro:', err);
       setErrorMessage(err.message || 'Error durante el proceso de registro.');
