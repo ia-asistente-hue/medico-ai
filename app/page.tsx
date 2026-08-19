@@ -1,14 +1,11 @@
-//app/page.tsx
-
-export const dynamic = 'force-dynamic'; // <-- Añade esta línea al inicio del archivo
-
+// app/page.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -21,7 +18,7 @@ export default function Home() {
       if (code) {
         // Intercambiar el código de confirmación por una sesión activa
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-        
+
         if (!error) {
           // Confirmación exitosa -> Redirigir al onboarding
           router.push('/onboarding');
@@ -49,5 +46,22 @@ export default function Home() {
         <p className="text-sm font-semibold text-slate-700">Verificando sesión...</p>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center bg-[#F1F5F9] font-sans">
+          <div className="text-center space-y-3">
+            <div className="w-10 h-10 border-4 border-[#0052FF] border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-sm font-semibold text-slate-700">Cargando...</p>
+          </div>
+        </main>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }
