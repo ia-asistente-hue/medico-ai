@@ -221,12 +221,13 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
       <style jsx global>{`
         @media print {
           @page {
-            margin: 10mm 15mm;
+            margin: 0; /* Oculta la fecha, título, URL y número de página del navegador */
             size: auto;
           }
           body {
             background-color: #ffffff !important;
             -webkit-print-color-adjust: exact;
+            padding: 15mm; /* Añade margen al contenido para que no toque los bordes del PDF */
           }
           .print\\:hidden {
             display: none !important;
@@ -268,27 +269,27 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
           <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row justify-between items-start gap-4">
             <div className="space-y-1 max-w-xs sm:max-w-md">
               <div className="flex items-center gap-2 mb-1">
-              {encounter.doctor?.clinic_logo_url ? (
-    <div className="h-28 w-auto flex items-center justify-center">
-      <img 
-        src={encounter.doctor.clinic_logo_url} 
-        alt="Logo Consultorio" 
-        className="max-h-28 max-w-[240px] object-contain" 
-      />
-    </div>
-  ) : (
-    <div className="h-24 w-auto flex items-center justify-center text-[#0052FF]">
-      <svg className="h-24 w-auto" viewBox="0 0 120 60" fill="none">
-        <path d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52" stroke="#00D09C" strokeWidth="6" strokeLinecap="round" />
-        <circle cx="90" cy="54" r="4" fill="#00D09C" />
-      </svg>
-    </div>
-  )}
-              <span className="text-lg font-bold tracking-tight text-[#1A202C]">
-                Medik<span className="text-[#0052FF]">AI </span>
-              </span>
-            </div>
+                {encounter.doctor?.clinic_logo_url ? (
+                  <div className="h-28 w-auto flex items-center justify-center">
+                    <img 
+                      src={encounter.doctor.clinic_logo_url} 
+                      alt="Logo Consultorio" 
+                      className="max-h-28 max-w-[240px] object-contain" 
+                    />
+                  </div>
+                ) : (
+                  <div className="h-24 w-auto flex items-center justify-center text-[#0052FF]">
+                    <svg className="h-24 w-auto" viewBox="0 0 120 60" fill="none">
+                      <path d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52" stroke="#00D09C" strokeWidth="6" strokeLinecap="round" />
+                      <circle cx="90" cy="54" r="4" fill="#00D09C" />
+                    </svg>
+                  </div>
+                )}
+                <span className="text-lg font-bold tracking-tight text-[#1A202C]">
+                  Medik<span className="text-[#0052FF]">AI </span>
+                </span>
+              </div>
               <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 <span className="print:hidden">RESUMEN DE CONSULTA Y </span>RECETA MÉDICA
               </h1>

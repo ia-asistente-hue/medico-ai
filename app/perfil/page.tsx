@@ -495,7 +495,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
               {saving
                 ? 'Guardando...'
                 : mode === 'onboarding'
-                ? 'Completar Registro e Ir al Dashboard'
+                ? 'Completar Registro'
                 : 'Guardar Todos los Cambios'}
             </button>
           </div>
