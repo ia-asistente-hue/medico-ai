@@ -5,7 +5,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import Link from 'next/link';
 
 interface Medicamento {
   medicamento?: string;
@@ -43,6 +42,13 @@ interface PrescriptionDetail {
     specialty: string;
     digital_signature_url: string | null;
     clinic_logo_url: string | null;
+    phone: string | null;
+    clinic_name: string | null;
+    street_address: string | null;
+    neighborhood: string | null;
+    city: string | null;
+    state: string | null;
+    postal_code: string | null;
     profile: {
       first_name: string;
       last_name: string;
@@ -94,6 +100,13 @@ export default function RecetaDetailPage() {
               specialty,
               digital_signature_url,
               clinic_logo_url,
+              phone,
+              clinic_name,
+              street_address,
+              neighborhood,
+              city,
+              state,
+              postal_code,
               profiles (
                 first_name,
                 last_name
@@ -113,28 +126,23 @@ export default function RecetaDetailPage() {
         return;
       }
 
-      // 1. Extraemos encounter asegurando objeto único
       const encounterData: any = Array.isArray(data.encounters) 
         ? data.encounters[0] 
         : data.encounters;
 
-      // 2. Extraemos paciente
       const rawPatient = encounterData && Array.isArray(encounterData.patients) 
         ? encounterData.patients[0] 
         : encounterData?.patients;
 
-      // 3. Extraemos doctor
       const rawDoctor = encounterData && Array.isArray(encounterData.doctors) 
         ? encounterData.doctors[0] 
         : encounterData?.doctors;
 
-      // 4. Extraemos profile usando casting seguro a 'any' en este paso dinámico
       const docObj = rawDoctor as any;
       const rawProfile = docObj && Array.isArray(docObj.profiles) 
         ? docObj.profiles[0] 
         : docObj?.profiles;
 
-      // 5. Parsear medicamentos
       let medicationsParsed: Medicamento[] = [];
       if (typeof data.medications === 'string') {
         try {
@@ -146,7 +154,6 @@ export default function RecetaDetailPage() {
         medicationsParsed = data.medications;
       }
 
-      // 6. Asignamos al estado con tipado estricto
       setPrescription({
         id: data.id,
         prescription_code: data.prescription_code,
@@ -159,6 +166,13 @@ export default function RecetaDetailPage() {
           specialty: rawDoctor.specialty || '',
           digital_signature_url: rawDoctor.digital_signature_url || null,
           clinic_logo_url: rawDoctor.clinic_logo_url || null,
+          phone: rawDoctor.phone || null,
+          clinic_name: rawDoctor.clinic_name || null,
+          street_address: rawDoctor.street_address || null,
+          neighborhood: rawDoctor.neighborhood || null,
+          city: rawDoctor.city || null,
+          state: rawDoctor.state || null,
+          postal_code: rawDoctor.postal_code || null,
           profile: rawProfile || null,
         } : null,
       });
@@ -215,20 +229,29 @@ export default function RecetaDetailPage() {
     ? `Dr(a). ${doctorProfile.first_name} ${doctorProfile.last_name}`
     : 'Dr(a). Tratante';
 
+  // Construcción de la dirección completa si existe
+  const addressParts = [
+    doctor?.street_address,
+    doctor?.neighborhood,
+    doctor?.city && doctor?.state ? `${doctor.city}, ${doctor.state}` : (doctor?.city || doctor?.state),
+    doctor?.postal_code ? `C.P. ${doctor.postal_code}` : null
+  ].filter(Boolean);
+
+  const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : null;
+
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12 print:bg-white print:p-0 print:pb-0">
       
-      {/* Estilos CSS para limpiar la impresión en PDF */}
       <style jsx global>{`
         @media print {
           @page {
-            margin: 0; /* Oculta la fecha, título, URL y número de página del navegador */
+            margin: 0;
             size: auto;
           }
           body {
             background-color: #ffffff !important;
             -webkit-print-color-adjust: exact;
-            padding: 15mm; /* Añade margen al contenido para que no toque los bordes del PDF */
+            padding: 15mm;
           }
           .print\\:hidden {
             display: none !important;
@@ -263,55 +286,79 @@ export default function RecetaDetailPage() {
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none">
         <div className="rounded-2xl bg-white p-6 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-200/80 space-y-8 print:shadow-none print:border-none print:p-0 print:space-y-6">
+          
           {/* ENCABEZADO INSTITUCIONAL */}
-          <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div className="space-y-1 max-w-xs sm:max-w-md">
-              
-              <div className="flex items-center gap-2 mb-1">
+          <div className="border-b border-slate-200 pb-6 flex flex-col sm:flex-row justify-between items-start gap-6">
+            
+            {/* Izquierda: Logotipo y Nombre del Consultorio/Plataforma */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
                 {doctor?.clinic_logo_url ? (
-                  <div className="h-28 w-auto flex items-center justify-center">
+                  <div className="h-24 w-auto flex items-center justify-center">
                     <img 
                       src={doctor.clinic_logo_url} 
                       alt="Logo Consultorio" 
-                      className="max-h-28 max-w-[240px] object-contain" 
+                      className="max-h-24 max-w-[200px] object-contain" 
                     />
                   </div>
                 ) : (
-                  <div className="h-24 w-auto flex items-center justify-center text-[#0052FF]">
-                    <svg className="h-24 w-auto" viewBox="0 0 120 60" fill="none">
+                  <div className="h-20 w-auto flex items-center justify-center text-[#0052FF]">
+                    <svg className="h-20 w-auto" viewBox="0 0 120 60" fill="none">
                       <path d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52" stroke="#00D09C" strokeWidth="6" strokeLinecap="round" />
                       <circle cx="90" cy="54" r="4" fill="#00D09C" />
                     </svg>
                   </div>
                 )}
-                <span className="text-lg font-bold tracking-tight text-[#1A202C]">
-                  Medik<span className="text-[#0052FF]">AI</span>
-                </span>
+                <div>
+                  {doctor?.clinic_name && (
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+                      {doctor.clinic_name}
+                    </h2>
+                  )}
+                  <span className="text-lg font-extrabold tracking-tight text-[#1A202C]">
+                    Medik<span className="text-[#0052FF]">AI</span>
+                  </span>
+                </div>
               </div>
               
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                RECETA MÉDICA
-              </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                Documento Oficial conforme a la <span className="font-semibold text-slate-700">NOM-004-SSA3-2012</span>
-              </p>
+              <div>
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                  RECETA MÉDICA
+                </h1>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  Documento Oficial conforme a la <span className="font-semibold text-slate-600">NOM-004-SSA3-2012</span>
+                </p>
+              </div>
             </div>
 
-            <div className="text-left sm:text-right text-xs text-slate-600 space-y-1 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-xl w-full sm:w-auto shrink-0">
+            {/* Derecha: Datos del Médico, Cédula, Dirección y Teléfono */}
+            <div className="text-left sm:text-right text-xs text-slate-600 space-y-1.5 bg-slate-50 sm:bg-transparent p-4 sm:p-0 rounded-xl w-full sm:w-72 shrink-0 border sm:border-none border-slate-100">
               <div>
-                <span className="text-slate-400">Médico: </span>
-                <span className="font-bold text-slate-800">{doctorNombre}</span>
+                <span className="font-bold text-slate-900 text-sm block">{doctorNombre}</span>
+                <span className="font-medium text-[#0052FF]">{doctor?.specialty || 'General'}</span>
               </div>
-              <div>
-                <span className="text-slate-400">Cédula Prof: </span>
-                <span className="font-semibold text-slate-800">{doctor?.medical_license || 'En trámite'}</span>
+              
+              <div className="pt-1 border-t border-slate-200/60 space-y-1">
+                <div>
+                  <span className="text-slate-400">Cédula Prof: </span>
+                  <span className="font-semibold text-slate-800">{doctor?.medical_license || 'En trámite'}</span>
+                </div>
+                {doctor?.phone && (
+                  <div>
+                    <span className="text-slate-400">Teléfono: </span>
+                    <span className="font-medium text-slate-700">{doctor.phone}</span>
+                  </div>
+                )}
+                {fullAddress && (
+                  <div>
+                    <span className="text-slate-400 block sm:inline">Dirección: </span>
+                    <span className="font-medium text-slate-700 leading-tight block sm:inline">{fullAddress}</span>
+                  </div>
+                )}
               </div>
-              <div>
-                <span className="text-slate-400">Especialidad: </span>
-                <span className="font-medium text-slate-700">{doctor?.specialty || 'General'}</span>
-              </div>
-              <div>
+
+              <div className="pt-1 border-t border-slate-200/60 text-[11px]">
                 <span className="text-slate-400">Fecha: </span>
                 <span className="font-medium text-slate-700">
                   {new Date(prescription.created_at).toLocaleDateString('es-MX', {
@@ -322,6 +369,7 @@ export default function RecetaDetailPage() {
                 </span>
               </div>
             </div>
+
           </div>
 
           {/* FICHA PACIENTE */}
@@ -432,7 +480,7 @@ export default function RecetaDetailPage() {
             )}
             <p className="font-bold text-slate-800">{doctorNombre}</p>
             <p className="text-[10px] text-slate-400">
-              Cédula Prof: {doctor?.medical_license || 'S/N'} | Firma Autógrafa / Digitalizada
+              Cédula Prof: {doctor?.medical_license || 'S/N'} | {doctor?.specialty || 'General'}
             </p>
           </div>
 
