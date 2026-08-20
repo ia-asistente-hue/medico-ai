@@ -1,3 +1,5 @@
+//app/login/page.tsx
+
 'use client'
 
 import { useState } from 'react'
@@ -40,33 +42,14 @@ export default function LoginPage() {
     <main className="flex min-h-[100dvh] items-center justify-center bg-[#F1F5F9] p-4 sm:p-6 font-sans">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 sm:p-8 shadow-xl shadow-slate-200/60 border border-slate-100">
         
-        {/* Header con Isotipo y Branding MedikAI */}
+        {/* Header con Imagen del Logo MedikAI */}
         <div className="mb-6 sm:mb-8 flex flex-col items-center text-center">
-          <div className="mb-3 flex items-center justify-center gap-2">
-            <svg
-              className="h-9 sm:h-10 w-auto text-[#0052FF]"
-              viewBox="0 0 120 60"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M10 30H25L35 10L45 50L55 20L65 40L75 30H85"
-                stroke="currentColor"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M85 30C85 30 90 20 100 20C110 20 110 32 100 38C95 41 90 45 90 52"
-                stroke="#00D09C"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-              <circle cx="90" cy="54" r="4" fill="#00D09C" />
-            </svg>
-            <span className="text-2xl font-bold tracking-tight text-[#1A202C]">
-              Medik<span className="text-[#0052FF]">AI</span>
-            </span>
+          <div className="mb-3 flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="MedikAI Logo" 
+              className="h-10 sm:h-11 w-auto object-contain"
+            />
           </div>
           <h1 className="text-lg sm:text-xl font-semibold text-slate-800">Acceso Médico</h1>
           <p className="mt-1 text-xs text-slate-500">
@@ -95,7 +78,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoComplete="email" // <-- Funcionalidad añadida: Permite autocompletar con llaveros o gestores
+              autoComplete="email"
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-base sm:text-sm text-[#1A202C] placeholder-slate-400 transition-all focus:border-[#0052FF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
               placeholder="doctor@ejemplo.com"
             />
@@ -113,7 +96,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                autoComplete="current-password" // <-- Funcionalidad añadida: Reconoce el campo de contraseña guardada
+                autoComplete="current-password"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 pr-11 text-base sm:text-sm text-[#1A202C] placeholder-slate-400 transition-all focus:border-[#0052FF] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
                 placeholder="••••••••"
               />
