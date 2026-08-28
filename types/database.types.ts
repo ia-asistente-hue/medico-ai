@@ -43,7 +43,7 @@ export interface Database {
           date_of_birth: string
           phone: string | null
           email: string | null
-          gender: 'male' | 'female' | 'other' | null
+          gender: 'masculino' | 'femenino' | 'otro' | null
           blood_type: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
           allergies: string[] | null
           chronic_conditions: string[] | null
@@ -59,7 +59,7 @@ export interface Database {
           date_of_birth: string
           phone?: string | null
           email?: string | null
-          gender?: 'male' | 'female' | 'other' | null
+          gender?: 'masculino' | 'femenino' | 'otro' | null
           blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
           allergies?: string[] | null
           chronic_conditions?: string[] | null
@@ -75,7 +75,7 @@ export interface Database {
           date_of_birth?: string
           phone?: string | null
           email?: string | null
-          gender?: 'male' | 'female' | 'other' | null
+          gender?: 'masculino' | 'femenino' | 'otro' | null
           blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
           allergies?: string[] | null
           chronic_conditions?: string[] | null

@@ -4,6 +4,7 @@
 import { useState, useEffect, use } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
+import { getFullEncounterDetailsAction } from '@/app/actions/patients'; // 👈 Importa la Server Action
 
 interface Medicamento {
   medicamento?: string;
@@ -64,7 +65,6 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
   const resolvedParams = use(params);
   const encounterId = resolvedParams.id;
 
-  const supabase = createClient();
   const [encounter, setEncounter] = useState<EncounterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -75,61 +75,19 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
         setLoading(true);
         setErrorMessage(null);
 
-        const { data, error } = await supabase
-          .from('encounters')
-          .select(`
-            id,
-            created_at,
-            status,
-            patients (
-              first_name,
-              last_name,
-              date_of_birth,
-              gender
-            ),
-            doctors (
-              medical_license,
-              specialty,
-              phone,
-              street_address,
-              neighborhood,
-              city,
-              state,
-              postal_code,
-              digital_signature_url,
-              clinic_logo_url,
-              profiles (
-                first_name,
-                last_name
-              )
-            ),
-            soap_notes (
-              subjective,
-              objective,
-              assessment,
-              plan,
-              created_at
-            ),
-            prescriptions (
-              id,
-              medications,
-              instructions,
-              prescription_code
-            )
-          `)
-          .eq('id', encounterId)
-          .single();
+        // 🟢 Invocar la Server Action que ejecuta la RPC de forma segura desde el servidor
+        const data = await getFullEncounterDetailsAction(encounterId);
 
-        if (error) throw error;
+        if (!data) {
+          throw new Error('No se encontraron registros para esta consulta.');
+        }
 
-        const patientData = Array.isArray(data.patients) ? data.patients[0] : data.patients;
-        const doctorData = Array.isArray(data.doctors) ? data.doctors[0] : data.doctors;
-        const profileData = doctorData && Array.isArray(doctorData.profiles) ? doctorData.profiles[0] : doctorData?.profiles;
-        const soapData = Array.isArray(data.soap_notes) ? data.soap_notes[0] : data.soap_notes;
-        const prescriptionData = Array.isArray(data.prescriptions) ? data.prescriptions[0] : data.prescriptions;
+        // Estructuración adecuada del objeto basándonos en el retorno de get_full_encounter_details
+        const soapData = data.soap_notes;
+        const prescriptionData = data.prescriptions;
 
         let medicamentosParsed: Medicamento[] = [];
-        if (prescriptionData) {
+        if (prescriptionData?.medications) {
           if (typeof prescriptionData.medications === 'string') {
             try {
               medicamentosParsed = JSON.parse(prescriptionData.medications);
@@ -145,24 +103,40 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
           id: data.id,
           created_at: data.created_at,
           status: data.status,
-          patient: patientData,
-          doctor: {
-            medical_license: doctorData?.medical_license || '',
-            specialty: doctorData?.specialty || 'General',
-            phone: doctorData?.phone || '',
-            street_address: doctorData?.street_address || '',
-            neighborhood: doctorData?.neighborhood || '',
-            city: doctorData?.city || '',
-            state: doctorData?.state || '',
-            postal_code: doctorData?.postal_code || '',
-            digital_signature_url: doctorData?.digital_signature_url || null,
-            clinic_logo_url: doctorData?.clinic_logo_url || null,
-            profile: Array.isArray(profileData) ? profileData[0] || null : profileData || null,
+          patient: {
+            first_name: data.patient_first_name || '',
+            last_name: data.patient_last_name || '',
+            date_of_birth: data.patient_date_of_birth || '',
+            gender: data.patient_gender || '',
           },
-          soap_note: soapData || null,
+          doctor: {
+            medical_license: data.doctor_medical_license || '',
+            specialty: data.doctor_specialty || 'General',
+            phone: data.doctor_phone || '',
+            street_address: data.doctor_street_address || '',
+            neighborhood: data.doctor_neighborhood || '',
+            city: data.doctor_city || '',
+            state: data.doctor_state || '',
+            postal_code: data.doctor_postal_code || '',
+            digital_signature_url: data.doctor_digital_signature_url || null,
+            clinic_logo_url: data.doctor_clinic_logo_url || null,
+            profile: data.doctor_first_name ? {
+              first_name: data.doctor_first_name,
+              last_name: data.doctor_last_name,
+            } : null,
+          },
+          soap_note: soapData ? {
+            subjective: soapData.subjective || '',
+            objective: soapData.objective || '',
+            assessment: soapData.assessment || '',
+            plan: soapData.plan || '',
+            created_at: data.created_at,
+          } : null,
           prescription: prescriptionData ? {
-            ...prescriptionData,
-            medications: medicamentosParsed
+            id: prescriptionData.id,
+            medications: medicamentosParsed,
+            instructions: prescriptionData.instructions || null,
+            prescription_code: prescriptionData.prescription_code || 'S/F',
           } : null,
         });
       } catch (err: any) {
@@ -176,6 +150,7 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
       fetchEncounterData();
     }
   }, [encounterId]);
+
 
   if (loading) {
     return (
@@ -221,8 +196,8 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
   const formatGender = (gender?: string) => {
     if (!gender) return 'No registrado';
     const g = gender.toLowerCase();
-    if (g === 'female' || g === 'femenino') return 'Femenino';
-    if (g === 'male' || g === 'masculino') return 'Masculino';
+    if (g === 'femenino') return 'Femenino';
+    if (g === 'masculino') return 'Masculino';
     return 'Otro';
   };
 

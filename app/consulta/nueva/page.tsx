@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase';
 import AudioRecorder from '@/components/consultation/AudioRecorder';
 import SoapEditor from '@/components/consultation/SoapEditor';
 import PrescriptionBuilder from '@/components/prescription/PrescriptionBuilder';
+import { getDecryptedPatientListAction } from '@/app/actions/patients';
 
 // Configuración de límites de grabación
 const MAX_RECORDING_SECONDS = 600; // 10 minutos máximo por grabación
@@ -20,7 +21,7 @@ interface Patient {
   first_name: string;
   last_name: string;
   date_of_birth: string;
-  gender?: 'male' | 'female' | 'other' | null;
+  gender?: 'masculino' | 'femenino' | 'otro' | null;
   blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null;
   allergies?: string[];
   chronic_conditions?: string[];
@@ -90,7 +91,7 @@ function NuevaConsultaContent() {
     first_name: '',
     last_name: '',
     date_of_birth: '',
-    gender: 'male' as 'male' | 'female' | 'other',
+    gender: 'masculino' as 'masculino' | 'femenino' | 'otro',
     phone: '',
     email: '',
     curp: '',
@@ -209,82 +210,84 @@ function NuevaConsultaContent() {
     autoIniciar();
   }, [autoStart, selectedPatient, doctorId, encounterId]);
 
-  const cargarPacientes = async (docId: string, autoSelectId?: string | null) => {
-    const { data: patientList } = await supabase
-      .from('patients')
-      .select('id, chart_number, first_name, last_name, date_of_birth, gender, blood_type, allergies, chronic_conditions, phone, email, curp, street_address')
-      .eq('doctor_id', docId)
-      .order('created_at', { ascending: false });
+      // 🟢 SOLUCIÓN: Usar la Server Action en lugar de invocar supabase.rpc directamente
+    const cargarPacientes = async (docId: string, autoSelectId?: string | null) => {
+      try {
+        const patientList = await getDecryptedPatientListAction(docId);
 
-    if (patientList) {
-      setPatients(patientList);
-      if (autoSelectId) {
-        const found = patientList.find((p) => p.id === autoSelectId);
-        if (found) {
-          setSelectedPatient(found);
-          setPatientQuery(`${found.first_name} ${found.last_name}`);
+        if (patientList) {
+          setPatients(patientList);
+          if (autoSelectId) {
+            const found = patientList.find((p: Patient) => p.id === autoSelectId);
+            if (found) {
+              setSelectedPatient(found);
+              setPatientQuery(`${found.first_name} ${found.last_name}`);
+            }
+          }
         }
+      } catch (err: any) {
+        setErrorMessage('Error al obtener lista de pacientes: ' + err.message);
       }
-    }
-  };
+    };
 
   // CREACIÓN DE PACIENTE INTEGRADA CON EL ESQUEMA COMPLETO DE LA BD
-  const handleCrearPaciente = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!doctorId || !newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) return;
+    const handleCrearPaciente = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!doctorId || !newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) return;
 
-    setCreatingPatient(true);
-    setErrorMessage(null);
+      setCreatingPatient(true);
+      setErrorMessage(null);
 
-    try {
-      const payload: Record<string, any> = {
-        doctor_id: doctorId,
-        first_name: newPatientData.first_name.trim(),
-        last_name: newPatientData.last_name.trim(),
-        date_of_birth: newPatientData.date_of_birth,
-        gender: newPatientData.gender,
-        chart_number: '', // Dispara el trigger de PostgreSQL para auto-generar el folio
-        phone: newPatientData.phone.trim() || null,
-        email: newPatientData.email.trim() || null,
-        curp: newPatientData.curp.trim().toUpperCase() || '',
-        street_address: newPatientData.street_address.trim() || '',
-      };
+      try {
+        const payload: Record<string, any> = {
+          doctor_id: doctorId,
+          first_name: newPatientData.first_name.trim(),
+          last_name: newPatientData.last_name.trim(),
+          date_of_birth: newPatientData.date_of_birth,
+          gender: newPatientData.gender,
+          chart_number: '', // Dispara el trigger de PostgreSQL para auto-generar el folio
+          phone: newPatientData.phone.trim() || null,
+          email: newPatientData.email.trim() || null,
+          curp: newPatientData.curp.trim().toUpperCase() || '',
+          street_address: newPatientData.street_address.trim() || '',
+        };
 
-      if (newPatientData.blood_type) {
-        payload.blood_type = newPatientData.blood_type;
+        if (newPatientData.blood_type) {
+          payload.blood_type = newPatientData.blood_type;
+        }
+
+        const { data: newPatient, error } = await supabase
+          .from('patients')
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // 🟢 CAMBIO AQUÍ: En lugar de setSelectedPatient(newPatient) y setPatients([newPatient, ...patients]),
+        // recargamos la lista desde la Server Action para obtener los datos desencriptados.
+        await cargarPacientes(doctorId, newPatient.id);
+
+        setIsNewPatientModalOpen(false);
+        
+        // Limpiar formulario
+        setNewPatientData({
+          first_name: '',
+          last_name: '',
+          date_of_birth: '',
+          gender: 'masculino',
+          phone: '',
+          email: '',
+          curp: '',
+          blood_type: '',
+          street_address: '',
+        });
+      } catch (err: any) {
+        setErrorMessage('Error al registrar paciente: ' + err.message);
+      } finally {
+        setCreatingPatient(false);
       }
-
-      const { data: newPatient, error } = await supabase
-        .from('patients')
-        .insert([payload])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setSelectedPatient(newPatient);
-      setPatientQuery(`${newPatient.first_name} ${newPatient.last_name}`);
-      setPatients([newPatient, ...patients]);
-      setIsNewPatientModalOpen(false);
-      
-      // Limpiar formulario
-      setNewPatientData({
-        first_name: '',
-        last_name: '',
-        date_of_birth: '',
-        gender: 'male',
-        phone: '',
-        email: '',
-        curp: '',
-        blood_type: '',
-        street_address: '',
-      });
-    } catch (err: any) {
-      setErrorMessage('Error al registrar paciente: ' + err.message);
-    } finally {
-      setCreatingPatient(false);
-    }
-  };
+    };
 
   const iniciarEncuentro = async () => {
     if (!selectedPatient || !doctorId) {
@@ -735,9 +738,9 @@ function NuevaConsultaContent() {
                     onChange={(e) => setNewPatientData({ ...newPatientData, gender: e.target.value as any })}
                     className="w-full rounded-xl border border-slate-200 px-2.5 py-2 text-xs focus:border-[#0052FF] focus:outline-none bg-white"
                   >
-                    <option value="male">Masculino</option>
-                    <option value="female">Femenino</option>
-                    <option value="other">Otro</option>
+                    <option value="masculino">Masculino</option>
+                    <option value="femenino">Femenino</option>
+                    <option value="otro">Otro</option>
                   </select>
                 </div>
                 <div>

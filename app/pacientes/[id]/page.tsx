@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
+// 1. Importar las Server Actions
+import { getDecryptedPatientAction, getPatientEncountersHistoryAction } from '@/app/actions/patients';
 
 interface Patient {
   id: string;
@@ -45,7 +46,6 @@ interface EncounterWithDetails {
 export default function ExpedienteClinicoPage() {
   const params = useParams();
   const router = useRouter();
-  const supabase = createClient();
   const patientId = params.id as string;
 
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -63,43 +63,12 @@ export default function ExpedienteClinicoPage() {
   const fetchExpedienteData = async () => {
     setLoading(true);
     try {
-      // 1. Obtener datos del Paciente
-      const { data: patientData, error: patientError } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('id', patientId)
-        .single();
-
-      if (patientError) throw patientError;
+      // 2. Reemplazar llamadas a Supabase por Server Actions de forma segura
+      const patientData = await getDecryptedPatientAction(patientId);
       setPatient(patientData);
 
-      // 2. Obtener Historial de Consultas (Encounters + SOAP Notes + Prescriptions)
-      const { data: encountersData, error: encountersError } = await supabase
-        .from('encounters')
-        .select(`
-          id,
-          created_at,
-          status,
-          soap_notes (
-            subjective,
-            objective,
-            assessment,
-            plan,
-            summary
-          ),
-          prescriptions (
-            id,
-            medications,
-            instructions,
-            prescription_code
-          )
-        `)
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false });
+      const encountersData = await getPatientEncountersHistoryAction(patientId);
 
-      if (encountersError) throw encountersError;
-      
-      // Mapear respuesta
       const formattedEncounters = (encountersData || []).map((e: any) => ({
         id: e.id,
         created_at: e.created_at,
@@ -174,7 +143,7 @@ export default function ExpedienteClinicoPage() {
         </button>
       </div>
 
-      {/* ALERTAS CRÍTICAS (ALERGIAS / ENFERMEDADES CRÓNICAS) */}
+      {/* ALERTAS CRÍTICAS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
         <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl">
           <span className="font-bold text-amber-900 block mb-1">⚠️ Alergias Registradas:</span>
@@ -264,7 +233,6 @@ export default function ExpedienteClinicoPage() {
                   key={enc.id}
                   className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden transition-all"
                 >
-                  {/* CABECERA CONSULTA */}
                   <div
                     onClick={() => setExpandedEncounter(isExpanded ? null : enc.id)}
                     className="p-4 bg-slate-50/60 hover:bg-slate-100/60 cursor-pointer flex items-center justify-between border-b border-slate-100"
@@ -290,7 +258,6 @@ export default function ExpedienteClinicoPage() {
                     </div>
                   </div>
 
-                  {/* CUERPO CONSULTA (EXPANDIBLE) */}
                   {isExpanded && (
                     <div className="p-5 space-y-4 text-xs">
                       {enc.soap_notes ? (
@@ -327,7 +294,6 @@ export default function ExpedienteClinicoPage() {
                         <p className="text-slate-400 italic">Nota SOAP no disponible para esta consulta.</p>
                       )}
 
-                      {/* DETALLE RECETA */}
                       {enc.prescriptions && (
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                           <div>

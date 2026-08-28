@@ -52,7 +52,7 @@ export default function PatientSelector({
     date_of_birth: '',
     phone: '',
     email: '',
-    gender: 'other',
+    gender: 'otro',
     blood_type: 'O+',
     allergies: '',
     chronic_conditions: '',
@@ -81,7 +81,7 @@ export default function PatientSelector({
         date_of_birth: '',
         phone: '',
         email: '',
-        gender: 'other',
+        gender: 'otro',
         blood_type: 'O+',
         allergies: '',
         chronic_conditions: '',
@@ -184,9 +184,9 @@ export default function PatientSelector({
                 value={newPatient.gender}
                 onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
               >
-                <option value="female">Femenino</option>
-                <option value="male">Masculino</option>
-                <option value="other">Otro</option>
+                <option value="femenino">Femenino</option>
+                <option value="masculino">Masculino</option>
+                <option value="otro">Otro</option>
               </select>
             </div>
             <div>

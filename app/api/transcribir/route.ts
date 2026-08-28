@@ -152,20 +152,21 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      transcript: resultadoIA.transcripcionOriginal,
-      soap: {
-        subjetivo: savedSoap?.subjective || resultadoIA.notaSOAP.subjetivo,
-        objetivo: savedSoap?.objective || resultadoIA.notaSOAP.objetivo,
-        analisis: savedSoap?.assessment || resultadoIA.notaSOAP.analisis,
-        plan: savedSoap?.plan || resultadoIA.notaSOAP.plan,
-      },
-      prescription: savedPrescription || {
-        instructions: instrucciones,
-        medications: medicamentos,
-      }
-    });
+    // ✅ DESPUÉS (Devuelve directamente el texto limpio generado por la IA):
+      return NextResponse.json({
+        success: true,
+        transcript: resultadoIA.transcripcionOriginal,
+        soap: {
+          subjetivo: resultadoIA.notaSOAP.subjetivo,
+          objetivo: resultadoIA.notaSOAP.objetivo,
+          analisis: resultadoIA.notaSOAP.analisis,
+          plan: resultadoIA.notaSOAP.plan,
+        },
+        prescription: {
+          instructions: instrucciones,
+          medications: medicamentos,
+        }
+      });
 
   } catch (error: any) {
     console.error('🔥 [/api/transcribir] Error crítico:', error);

@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { fetchPrescriptionAction} from '@/app/actions/patients';
 
 interface Medicamento {
   medicamento?: string;
@@ -77,49 +78,8 @@ export default function RecetaDetailPage() {
     setErrorMsg(null);
 
     try {
-      const { data, error } = await supabase
-        .from('prescriptions')
-        .select(`
-          id,
-          prescription_code,
-          instructions,
-          medications,
-          created_at,
-          encounters (
-            id,
-            created_at,
-            patients (
-              first_name,
-              last_name,
-              date_of_birth,
-              gender,
-              blood_type
-            ),
-            doctors (
-              medical_license,
-              specialty,
-              digital_signature_url,
-              clinic_logo_url,
-              phone,
-              clinic_name,
-              street_address,
-              neighborhood,
-              city,
-              state,
-              postal_code,
-              profiles (
-                first_name,
-                last_name
-              )
-            )
-          )
-        `)
-        .eq('id', prescriptionId)
-        .maybeSingle();
-
-      if (error) {
-        throw new Error('Error al consultar la receta en la base de datos.');
-      }
+      // Llamamos a la Server Action de forma segura
+      const data = await fetchPrescriptionAction(prescriptionId);
 
       if (!data) {
         setErrorMsg('La receta solicitada no existe o no se encuentra disponible.');
@@ -186,8 +146,8 @@ export default function RecetaDetailPage() {
   const formatGender = (gender?: string) => {
     if (!gender) return 'No registrado';
     const g = gender.toLowerCase();
-    if (g === 'female' || g === 'femenino') return 'Femenino';
-    if (g === 'male' || g === 'masculino') return 'Masculino';
+    if (g === 'femenino') return 'Femenino';
+    if (g === 'masculino') return 'Masculino';
     return 'Otro';
   };
 
