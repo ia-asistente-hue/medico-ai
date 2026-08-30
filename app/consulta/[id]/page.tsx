@@ -264,7 +264,13 @@ useEffect(() => {
             prescriptionCode={encounter.prescription.prescription_code}
             createdAt={encounter.created_at}
             instructions={encounter.prescription.instructions}
-            medications={encounter.prescription.medications}
+            medications={(encounter.prescription?.medications || []).map((med: any) => ({
+              medicamento: med.medicamento || '',
+              dosis: med.dosis || '',
+              frecuencia: med.frecuencia || '',
+              duracion: med.duracion || '',
+              indicaciones: med.indicaciones || '',
+            }))}
             patient={encounter.patient}
             doctor={encounter.doctor}
           />
