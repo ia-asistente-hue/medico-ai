@@ -36,7 +36,16 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError(error.message)
+      // Función para traducir mensajes técnicos de Supabase al español
+      let mensajeAmigable = error.message
+      
+      if (error.message.includes('Email not confirmed')) {
+        mensajeAmigable = 'Por favor, confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada o spam.'
+      } else if (error.message.includes('Invalid login credentials')) {
+        mensajeAmigable = 'Correo electrónico o contraseña incorrectos.'
+      }
+
+      setError(mensajeAmigable)
       setLoading(false)
     } else {
       router.push('/consulta/nueva')

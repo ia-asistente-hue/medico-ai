@@ -1,8 +1,6 @@
-//app/auth/update-password/page.tsx
-
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
 
@@ -11,12 +9,28 @@ export default function UpdatePasswordPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isReady, setIsReady] = useState(false) // 🟢 Control de sesión lista
   const router = useRouter()
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  // 🟢 IMPORTANTE: Aseguramos que Supabase procese el token de recuperación de la URL
+  useEffect(() => {
+    const checkSession = async () => {
+      // Supabase maneja automáticamente el intercambio del token si viene en el hash de la URL (#access_token=...)
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error || !session) {
+        setError('La sesión de recuperación es inválida o ha expirado. Por favor solicita un nuevo enlace.')
+      }
+      setIsReady(true)
+    }
+
+    checkSession()
+  }, [supabase])
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +48,15 @@ export default function UpdatePasswordPage() {
       router.push('/consulta/nueva')
       router.refresh()
     }
+  }
+
+  // Si todavía está validando la sesión en la URL, mostramos un estado neutral de carga
+  if (!isReady) {
+    return (
+      <main className="flex min-h-[100dvh] items-center justify-center bg-[#F1F5F9] p-4 font-sans">
+        <div className="text-center text-sm text-slate-500">Verificando enlace de acceso...</div>
+      </main>
+    )
   }
 
   return (
@@ -65,7 +88,7 @@ export default function UpdatePasswordPage() {
           </div>
         )}
 
-        {/* Formulario */}
+        {/* Formulario (Solo se habilita si hay sesión de recuperación válida) */}
         <form onSubmit={handleUpdatePassword} className="space-y-4 sm:space-y-5">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
