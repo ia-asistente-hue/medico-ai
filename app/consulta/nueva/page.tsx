@@ -11,7 +11,7 @@ import AudioRecorder from '@/components/consultation/AudioRecorder';
 import SoapEditor from '@/components/consultation/SoapEditor';
 import PrescriptionBuilder from '@/components/prescription/PrescriptionBuilder';
 import { getDecryptedPatientListAction } from '@/app/actions/patients';
-import { guardarRecetaSeguraAction } from '@/app/actions/prescriptions'; // O la ruta correcta donde creaste la función
+import { guardarRecetaSeguraAction } from '@/app/actions/prescriptions';
 
 // Configuración de límites de grabación
 const MAX_RECORDING_SECONDS = 600; // 10 minutos máximo por grabación
@@ -211,84 +211,78 @@ function NuevaConsultaContent() {
     autoIniciar();
   }, [autoStart, selectedPatient, doctorId, encounterId]);
 
-      // 🟢 SOLUCIÓN: Usar la Server Action en lugar de invocar supabase.rpc directamente
-    const cargarPacientes = async (docId: string, autoSelectId?: string | null) => {
-      try {
-        const patientList = await getDecryptedPatientListAction(docId);
+  const cargarPacientes = async (docId: string, autoSelectId?: string | null) => {
+    try {
+      const patientList = await getDecryptedPatientListAction(docId);
 
-        if (patientList) {
-          setPatients(patientList);
-          if (autoSelectId) {
-            const found = patientList.find((p: Patient) => p.id === autoSelectId);
-            if (found) {
-              setSelectedPatient(found);
-              setPatientQuery(`${found.first_name} ${found.last_name}`);
-            }
+      if (patientList) {
+        setPatients(patientList);
+        if (autoSelectId) {
+          const found = patientList.find((p: Patient) => p.id === autoSelectId);
+          if (found) {
+            setSelectedPatient(found);
+            setPatientQuery(`${found.first_name} ${found.last_name}`);
           }
         }
-      } catch (err: any) {
-        setErrorMessage('Error al obtener lista de pacientes: ' + err.message);
       }
-    };
+    } catch (err: any) {
+      setErrorMessage('Error al obtener lista de pacientes: ' + err.message);
+    }
+  };
 
-  // CREACIÓN DE PACIENTE INTEGRADA CON EL ESQUEMA COMPLETO DE LA BD
-    const handleCrearPaciente = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!doctorId || !newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) return;
+  const handleCrearPaciente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!doctorId || !newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) return;
 
-      setCreatingPatient(true);
-      setErrorMessage(null);
+    setCreatingPatient(true);
+    setErrorMessage(null);
 
-      try {
-        const payload: Record<string, any> = {
-          doctor_id: doctorId,
-          first_name: newPatientData.first_name.trim(),
-          last_name: newPatientData.last_name.trim(),
-          date_of_birth: newPatientData.date_of_birth,
-          gender: newPatientData.gender,
-          chart_number: '', // Dispara el trigger de PostgreSQL para auto-generar el folio
-          phone: newPatientData.phone.trim() || null,
-          email: newPatientData.email.trim() || null,
-          curp: newPatientData.curp.trim().toUpperCase() || '',
-          street_address: newPatientData.street_address.trim() || '',
-        };
+    try {
+      const payload: Record<string, any> = {
+        doctor_id: doctorId,
+        first_name: newPatientData.first_name.trim(),
+        last_name: newPatientData.last_name.trim(),
+        date_of_birth: newPatientData.date_of_birth,
+        gender: newPatientData.gender,
+        chart_number: '',
+        phone: newPatientData.phone.trim() || null,
+        email: newPatientData.email.trim() || null,
+        curp: newPatientData.curp.trim().toUpperCase() || '',
+        street_address: newPatientData.street_address.trim() || '',
+      };
 
-        if (newPatientData.blood_type) {
-          payload.blood_type = newPatientData.blood_type;
-        }
-
-        const { data: newPatient, error } = await supabase
-          .from('patients')
-          .insert([payload])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // 🟢 CAMBIO AQUÍ: En lugar de setSelectedPatient(newPatient) y setPatients([newPatient, ...patients]),
-        // recargamos la lista desde la Server Action para obtener los datos desencriptados.
-        await cargarPacientes(doctorId, newPatient.id);
-
-        setIsNewPatientModalOpen(false);
-        
-        // Limpiar formulario
-        setNewPatientData({
-          first_name: '',
-          last_name: '',
-          date_of_birth: '',
-          gender: 'masculino',
-          phone: '',
-          email: '',
-          curp: '',
-          blood_type: '',
-          street_address: '',
-        });
-      } catch (err: any) {
-        setErrorMessage('Error al registrar paciente: ' + err.message);
-      } finally {
-        setCreatingPatient(false);
+      if (newPatientData.blood_type) {
+        payload.blood_type = newPatientData.blood_type;
       }
-    };
+
+      const { data: newPatient, error } = await supabase
+        .from('patients')
+        .insert([payload])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await cargarPacientes(doctorId, newPatient.id);
+      setIsNewPatientModalOpen(false);
+      
+      setNewPatientData({
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        gender: 'masculino',
+        phone: '',
+        email: '',
+        curp: '',
+        blood_type: '',
+        street_address: '',
+      });
+    } catch (err: any) {
+      setErrorMessage('Error al registrar paciente: ' + err.message);
+    } finally {
+      setCreatingPatient(false);
+    }
+  };
 
   const iniciarEncuentro = async () => {
     if (!selectedPatient || !doctorId) {
@@ -355,8 +349,7 @@ function NuevaConsultaContent() {
     }
   };
 
-const procesarAudio = async (audioBlob: Blob) => {
-    console.log(`PROCESAR AUDIO!!"!!!`);
+  const procesarAudio = async (audioBlob: Blob) => {
     if (!encounterId) return;
     setLoading(true);
     setErrorMessage(null);
@@ -377,9 +370,6 @@ const procesarAudio = async (audioBlob: Blob) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Error procesando la transcripción');
 
-      console.log('📦 [DEBUG] Respuesta completa de /api/transcribir:', data);
-
-      // Asignar SOAP con seguridad
       if (data.soap) {
         setEditableSoap({
           subjetivo: formatSection(data.soap.subjetivo),
@@ -389,7 +379,6 @@ const procesarAudio = async (audioBlob: Blob) => {
         });
       }
 
-      // Extraer medicamentos asegurando múltiples posibles nombres de propiedades de la IA
       const rawMeds = data.prescription?.medications || data.prescription?.medication_list || data.medications || [];
       
       const medicamentosPlanos = rawMeds.map((med: any) => ({
@@ -404,7 +393,6 @@ const procesarAudio = async (audioBlob: Blob) => {
       setInstruccionesReceta(data.prescription?.instructions || data.instructions || '');
 
     } catch (err: any) {
-      console.error('🔥 Error en procesarAudio:', err);
       setErrorMessage(err.message);
     } finally {
       setLoading(false);
@@ -417,7 +405,6 @@ const procesarAudio = async (audioBlob: Blob) => {
     setErrorMessage(null);
 
     try {
-      // 1. Guardar la Nota SOAP
       const { error: soapError } = await supabase.from('soap_notes').upsert(
         [
           {
@@ -433,7 +420,6 @@ const procesarAudio = async (audioBlob: Blob) => {
 
       if (soapError) throw soapError;
 
-      // 2. Guardar la receta cifrada a través de la Server Action del Back
       if (medicamentos.length > 0) {
         await guardarRecetaSeguraAction({
           encounterId,
@@ -444,7 +430,6 @@ const procesarAudio = async (audioBlob: Blob) => {
         });
       }
 
-      // 3. Marcar el encuentro como completado
       const { error: encounterError } = await supabase
         .from('encounters')
         .update({ status: 'completed' })
@@ -463,15 +448,21 @@ const procesarAudio = async (audioBlob: Blob) => {
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-4">
+      {/* HEADER MEJORADO CON LOGO ENLAZADO */}
+      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="MedikAI Logo" className="h-8 w-auto object-contain" />
-          </div>
-          <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
+              <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
+            </div>
+            <span className="font-bold text-slate-800 tracking-tight text-sm sm:text-base">
+              Medik<span className="text-[#0052FF]">AI</span>
+            </span>
+          </Link>
+          <div className="flex items-center gap-2.5">
             <Link
               href="/perfil"
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-[#0052FF] transition-all"
+              className="rounded-xl border border-slate-200/80 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-[#0052FF] transition-all shadow-2xs"
             >
               Mi Perfil
             </Link>
@@ -480,7 +471,7 @@ const procesarAudio = async (audioBlob: Blob) => {
                 await supabase.auth.signOut();
                 router.push('/login');
               }}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all"
+              className="rounded-xl border border-slate-200/80 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
             >
               Cerrar Sesión
             </button>
@@ -489,6 +480,7 @@ const procesarAudio = async (audioBlob: Blob) => {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+        {/* BARRA DE PROGRESO DE PASOS MEJORADA */}
         <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-200/80">
           <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
             <div className={`p-2.5 rounded-xl transition-all ${currentStep === 1 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
@@ -685,7 +677,7 @@ const procesarAudio = async (audioBlob: Blob) => {
         )}
       </main>
 
-      {/* MODAL COMPLETO DE REGISTRO DE PACIENTE */}
+      {/* MODAL DE NUEVO PACIENTE */}
       {isNewPatientModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 my-8 animate-in fade-in zoom-in-95 duration-150">
@@ -746,7 +738,7 @@ const procesarAudio = async (audioBlob: Blob) => {
                   <select
                     value={newPatientData.blood_type}
                     onChange={(e) => setNewPatientData({ ...newPatientData, blood_type: e.target.value as any })}
-                    className="w-full rounded-xl border border-slate-200 px-2 py-2 text-xs focus:border-[#0052FF] focus:outline-none bg-white"
+                    className="w-full rounded-xl border border-slate-200 px-2.5 py-2 text-xs focus:border-[#0052FF] focus:outline-none bg-white"
                   >
                     <option value="">Desconocido</option>
                     <option value="A+">A+</option>
