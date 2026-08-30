@@ -18,34 +18,44 @@ export async function savePrescription({
   medications,
   instructions,
 }: SavePrescriptionParams) {
+  console.log('🔍 [savePrescription] Iniciando proceso para encounterId:', encounterId);
+  console.log('💊 [savePrescription] Medicamentos recibidos:', JSON.stringify(medications, null, 2));
+  console.log('📝 [savePrescription] Instrucciones recibidas:', instructions);
+
   // Si no hay medicamentos ni instrucciones, no generamos receta vacía
   if ((!medications || medications.length === 0) && !instructions) {
+    console.log('⚠️ [savePrescription] No hay medicamentos ni instrucciones. Omitiendo guardado de receta.');
     return null;
   }
 
   // Generación de un código de folio único y legible para cumplimiento normativo
   const folioCode = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
+  console.log('🏷️ [savePrescription] Folio generado:', folioCode);
 
-  // Reemplaza esta consulta:
+  const payload = {
+    encounter_id: encounterId,
+    doctor_id: doctorId,
+    medications: medications || [],
+    instructions: instructions || null,
+    prescription_code: folioCode,
+  };
+
+  console.log('📦 [savePrescription] Payload listo para hacer upsert en Supabase:', JSON.stringify(payload, null, 2));
+
   const { data, error } = await (supabase.from('prescriptions') as any)
     .upsert(
-      [
-        {
-          encounter_id: encounterId,
-          doctor_id: doctorId,
-          medications: medications || [],
-          instructions: instructions || null,
-          prescription_code: folioCode,
-        },
-      ],
+      [payload],
       { onConflict: 'encounter_id' }
     )
     .select()
     .single();
     
   if (error) {
+    console.error('❌ [savePrescription] Error de Supabase al guardar:', error);
     throw new Error(`Error al guardar la prescripción: ${error.message}`);
   }
+
+  console.log('✅ [savePrescription] Receta guardada exitosamente en la BD:', data);
 
   return data;
 }

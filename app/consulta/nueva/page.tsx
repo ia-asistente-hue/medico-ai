@@ -11,6 +11,7 @@ import AudioRecorder from '@/components/consultation/AudioRecorder';
 import SoapEditor from '@/components/consultation/SoapEditor';
 import PrescriptionBuilder from '@/components/prescription/PrescriptionBuilder';
 import { getDecryptedPatientListAction } from '@/app/actions/patients';
+import { guardarRecetaSeguraAction } from '@/app/actions/prescriptions'; // O la ruta correcta donde creaste la función
 
 // Configuración de límites de grabación
 const MAX_RECORDING_SECONDS = 600; // 10 minutos máximo por grabación
@@ -354,7 +355,8 @@ function NuevaConsultaContent() {
     }
   };
 
-  const procesarAudio = async (audioBlob: Blob) => {
+const procesarAudio = async (audioBlob: Blob) => {
+    console.log(`PROCESAR AUDIO!!"!!!`);
     if (!encounterId) return;
     setLoading(true);
     setErrorMessage(null);
@@ -375,19 +377,34 @@ function NuevaConsultaContent() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Error procesando la transcripción');
 
-      setEditableSoap({
-        subjetivo: formatSection(data.soap.subjetivo),
-        objetivo: formatSection(data.soap.objetivo),
-        analisis: formatSection(data.soap.analisis),
-        plan: formatSection(data.soap.plan),
-      });
+      console.log('📦 [DEBUG] Respuesta completa de /api/transcribir:', data);
 
-      const medsResponded = data.prescription?.medications || data.prescription?.medication_list || [];
-      const instResponded = data.prescription?.instructions || '';
+      // Asignar SOAP con seguridad
+      if (data.soap) {
+        setEditableSoap({
+          subjetivo: formatSection(data.soap.subjetivo),
+          objetivo: formatSection(data.soap.objetivo),
+          analisis: formatSection(data.soap.analisis),
+          plan: formatSection(data.soap.plan),
+        });
+      }
 
-      setMedicamentos(medsResponded);
-      setInstruccionesReceta(instResponded);
+      // Extraer medicamentos asegurando múltiples posibles nombres de propiedades de la IA
+      const rawMeds = data.prescription?.medications || data.prescription?.medication_list || data.medications || [];
+      
+      const medicamentosPlanos = rawMeds.map((med: any) => ({
+        medicamento: typeof med === 'string' ? med : (med.medicamento || med.nombre || med.name || ''),
+        dosis: med.dosis || med.dosage || '',
+        frecuencia: med.frecuencia || med.frequency || '',
+        duracion: med.duracion || med.duration || '',
+        indicaciones: med.indicaciones || med.instructions || '',
+      }));
+
+      setMedicamentos(medicamentosPlanos);
+      setInstruccionesReceta(data.prescription?.instructions || data.instructions || '');
+
     } catch (err: any) {
+      console.error('🔥 Error en procesarAudio:', err);
       setErrorMessage(err.message);
     } finally {
       setLoading(false);
@@ -400,6 +417,7 @@ function NuevaConsultaContent() {
     setErrorMessage(null);
 
     try {
+      // 1. Guardar la Nota SOAP
       const { error: soapError } = await supabase.from('soap_notes').upsert(
         [
           {
@@ -415,38 +433,18 @@ function NuevaConsultaContent() {
 
       if (soapError) throw soapError;
 
+      // 2. Guardar la receta cifrada a través de la Server Action del Back
       if (medicamentos.length > 0) {
-        const { data: existingRx } = await supabase
-          .from('prescriptions')
-          .select('id')
-          .eq('encounter_id', encounterId)
-          .maybeSingle();
-
-        if (existingRx) {
-          const { error: rxUpdateError } = await supabase
-            .from('prescriptions')
-            .update({
-              medications: medicamentos,
-              instructions: instruccionesReceta || null,
-            })
-            .eq('id', existingRx.id);
-
-          if (rxUpdateError) throw rxUpdateError;
-        } else {
-          const { error: rxInsertError } = await supabase.from('prescriptions').insert([
-            {
-              encounter_id: encounterId,
-              doctor_id: doctorId,
-              patient_id: selectedPatient.id,
-              medications: medicamentos,
-              instructions: instruccionesReceta || null,
-              prescription_code: `RX-${Math.floor(100000 + Math.random() * 900000)}`,
-            },
-          ]);
-          if (rxInsertError) throw rxInsertError;
-        }
+        await guardarRecetaSeguraAction({
+          encounterId,
+          doctorId,
+          patientId: selectedPatient.id,
+          medicamentos,
+          instruccionesReceta,
+        });
       }
 
+      // 3. Marcar el encuentro como completado
       const { error: encounterError } = await supabase
         .from('encounters')
         .update({ status: 'completed' })

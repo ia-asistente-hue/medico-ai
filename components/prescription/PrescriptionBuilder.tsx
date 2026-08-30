@@ -1,6 +1,7 @@
+// components/PrescriptionBuilder.tsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Medicamento {
   medicamento: string;
@@ -22,6 +23,14 @@ interface PrescriptionBuilderProps {
   saving: boolean;
 }
 
+const emptyMed: Medicamento = {
+  medicamento: '',
+  dosis: '',
+  frecuencia: '',
+  duracion: '',
+  indicaciones: '',
+};
+
 export default function PrescriptionBuilder({
   medicamentos = [],
   nuevoMed,
@@ -34,29 +43,11 @@ export default function PrescriptionBuilder({
   saving,
 }: PrescriptionBuilderProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const skipSyncRef = useRef(false);
 
-  const [formState, setFormState] = useState<Medicamento>({
-    medicamento: '',
-    dosis: '',
-    frecuencia: '',
-    duracion: '',
-    indicaciones: '',
-  });
+  // Sincronizar estado local con nuevoMed cuando se propague del padre (ej. IA) y no estemos editando
+  const [formState, setFormState] = useState<Medicamento>(emptyMed);
 
-  const handleInputChange = (field: keyof Medicamento, val: string) => {
-    skipSyncRef.current = false;
-    setFormState((prev) => ({ ...prev, [field]: val }));
-    onUpdateNuevoMed(field, val);
-  };
-
-  // Sincronizar solo si NO venimos de una acción de guardado/limpieza manual
   useEffect(() => {
-    if (skipSyncRef.current) {
-      skipSyncRef.current = false;
-      return;
-    }
-
     if (editingIndex === null && nuevoMed) {
       setFormState({
         medicamento: nuevoMed.medicamento || (nuevoMed as any).nombre || '',
@@ -68,26 +59,19 @@ export default function PrescriptionBuilder({
     }
   }, [nuevoMed, editingIndex]);
 
+  const handleInputChange = (field: keyof Medicamento, val: string) => {
+    setFormState((prev) => ({ ...prev, [field]: val }));
+    onUpdateNuevoMed(field, val);
+  };
+
   const resetForm = () => {
-    skipSyncRef.current = true;
-    const empty: Medicamento = {
-      medicamento: '',
-      dosis: '',
-      frecuencia: '',
-      duracion: '',
-      indicaciones: '',
-    };
-    
-    setFormState(empty);
-    
-    // Limpieza explícita hacia el padre
-    (Object.keys(empty) as (keyof Medicamento)[]).forEach((key) => {
+    setFormState(emptyMed);
+    (Object.keys(emptyMed) as (keyof Medicamento)[]).forEach((key) => {
       onUpdateNuevoMed(key, '');
     });
   };
 
   const handleStartEdit = (idx: number, med: any) => {
-    skipSyncRef.current = true;
     setEditingIndex(idx);
     const dataToEdit: Medicamento = {
       medicamento: med.medicamento || med.nombre || '',
@@ -99,8 +83,9 @@ export default function PrescriptionBuilder({
 
     setFormState(dataToEdit);
     
-    (Object.keys(dataToEdit) as (keyof Medicamento)[]).forEach((key) => {
-      onUpdateNuevoMed(key, dataToEdit[key]);
+    // Sincronizar con el padre en modo edición
+    Object.entries(dataToEdit).forEach(([key, val]) => {
+      onUpdateNuevoMed(key as keyof Medicamento, val);
     });
   };
 
@@ -217,9 +202,7 @@ export default function PrescriptionBuilder({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">
-              Medicamento
-            </label>
+            <label className="block text-[11px] font-semibold text-slate-600">Medicamento</label>
             <input
               type="text"
               placeholder="Ej. Paracetamol, Ibuprofeno..."
@@ -230,12 +213,10 @@ export default function PrescriptionBuilder({
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">
-              Dosis
-            </label>
+            <label className="block text-[11px] font-semibold text-slate-600">Dosis</label>
             <input
               type="text"
-              placeholder="Ej. 500 mg, 1 tableta, 5 ml..."
+              placeholder="Ej. 500 mg, 1 tableta..."
               value={formState.dosis}
               onChange={(e) => handleInputChange('dosis', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -243,12 +224,10 @@ export default function PrescriptionBuilder({
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">
-              Frecuencia
-            </label>
+            <label className="block text-[11px] font-semibold text-slate-600">Frecuencia</label>
             <input
               type="text"
-              placeholder="Ej. Cada 8 horas, Cada 12 horas..."
+              placeholder="Ej. Cada 8 horas..."
               value={formState.frecuencia}
               onChange={(e) => handleInputChange('frecuencia', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -256,12 +235,10 @@ export default function PrescriptionBuilder({
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">
-              Duración
-            </label>
+            <label className="block text-[11px] font-semibold text-slate-600">Duración</label>
             <input
               type="text"
-              placeholder="Ej. 5 días, 7 días, Única dosis..."
+              placeholder="Ej. 5 días..."
               value={formState.duracion}
               onChange={(e) => handleInputChange('duracion', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -269,12 +246,10 @@ export default function PrescriptionBuilder({
           </div>
 
           <div className="sm:col-span-2 space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">
-              Indicaciones Específicas del Medicamento (Opcional)
-            </label>
+            <label className="block text-[11px] font-semibold text-slate-600">Indicaciones Específicas</label>
             <input
               type="text"
-              placeholder="Ej. Tomar con alimentos, En ayunas..."
+              placeholder="Ej. Tomar con alimentos..."
               value={formState.indicaciones}
               onChange={(e) => handleInputChange('indicaciones', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -297,14 +272,12 @@ export default function PrescriptionBuilder({
 
       {/* INSTRUCCIONES GENERALES */}
       <div className="space-y-1.5 pt-2 border-t border-slate-100">
-        <label className="text-xs font-semibold text-slate-700">
-          Instrucciones Generales de la Receta
-        </label>
+        <label className="text-xs font-semibold text-slate-700">Instrucciones Generales de la Receta</label>
         <textarea
           rows={2}
           value={instruccionesReceta}
           onChange={(e) => onUpdateInstrucciones(e.target.value)}
-          placeholder="Indicaciones sobre reposo, dieta, signos de alarma..."
+          placeholder="Indicaciones sobre reposo, dieta..."
           className="w-full p-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

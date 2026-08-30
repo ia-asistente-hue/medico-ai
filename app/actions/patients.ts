@@ -2,6 +2,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase';
+import { decryptText } from '@/utils/encryption';
 
 // 1. Obtener lista de pacientes descifrada
 export async function getDecryptedPatientListAction(doctorId: string) {
@@ -66,7 +67,52 @@ export async function getPatientEncountersHistoryAction(patientId: string) {
     throw new Error(error.message);
   }
 
-  return data || [];
+  // 🔓 Procesamos y desciframos los campos específicos de las recetas en el historial
+  const processedData = (data || []).map((encounter: any) => {
+    if (encounter.prescriptions) {
+      let rawMeds = encounter.prescriptions.medications;
+      
+      // Asegurarnos de que los medicamentos sean un arreglo
+      if (typeof rawMeds === 'string') {
+        try {
+          rawMeds = JSON.parse(rawMeds);
+        } catch {
+          rawMeds = [];
+        }
+      }
+
+      const decryptedMedications = (Array.isArray(rawMeds) ? rawMeds : []).map((med: any) => {
+        const medName = med.medicamento || med.nombre || med.name || '';
+        const medDosis = med.dosis || med.dosage || '';
+        const medFreq = med.frecuencia || med.frequency || '';
+        const medDur = med.duracion || med.duration || '';
+        const medInst = med.indicaciones || med.instructions || '';
+
+        return {
+          medicamento: medName.startsWith('U2FsdGVk') ? decryptText(medName) : medName,
+          dosis: medDosis.startsWith('U2FsdGVk') ? decryptText(medDosis) : medDosis,
+          frecuencia: medFreq.startsWith('U2FsdGVk') ? decryptText(medFreq) : medFreq,
+          duracion: medDur.startsWith('U2FsdGVk') ? decryptText(medDur) : medDur,
+          indicaciones: medInst.startsWith('U2FsdGVk') ? decryptText(medInst) : medInst,
+        };
+      });
+
+      const rawInstructions = encounter.prescriptions.instructions || '';
+      const decryptedInstructions = (rawInstructions.startsWith('U2FsdGVk') || rawInstructions.length > 60)
+        ? decryptText(rawInstructions)
+        : rawInstructions;
+
+      encounter.prescriptions = {
+        ...encounter.prescriptions,
+        medications: decryptedMedications,
+        instructions: decryptedInstructions,
+      };
+    }
+
+    return encounter;
+  });
+
+  return processedData || [];
 }
 
 export async function getFullEncounterDetailsAction(encounterId: string) {

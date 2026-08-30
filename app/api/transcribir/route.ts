@@ -1,12 +1,14 @@
+//app/api/transcribir/route.ts
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { resolveDoctorId } from '@/lib/services/doctor.service';
 import { saveSoapNote } from '@/lib/services/soap.service';
 import { generarNotaSOAPDesdeAudio } from '@/lib/groqService';
+import { decryptText, encryptText } from '@/utils/encryption';
 
 export async function POST(request: Request) {
-  console.log('🚀 [/api/transcribir] Solicitud POST recibida');
+  console.log('🔊 [API-TRANSCRIBIR] 🚀 Solicitud POST recibida');
 
   try {
     const formData = await request.formData();
@@ -15,14 +17,14 @@ export async function POST(request: Request) {
     const audioFile = formData.get('audio') as File | null;
     const encounterId = formData.get('encounter_id') as string | null;
 
-    console.log('📥 [/api/transcribir] Datos recibidos:', {
+    console.log('🔊 [API-TRANSCRIBIR] 📥 Datos recibidos del cliente:', {
       encounterId,
       audioFileName: audioFile?.name,
       audioFileSize: audioFile?.size,
     });
 
     if (!audioFile || !(audioFile instanceof File) || !encounterId) {
-      console.error('❌ [/api/transcribir] Error: Faltan datos obligatorios');
+      console.error('🔊 [API-TRANSCRIBIR] ❌ Error: Faltan datos obligatorios');
       return NextResponse.json(
         { error: 'Faltan datos obligatorios o el archivo de audio es inválido' },
         { status: 400 }
@@ -64,15 +66,15 @@ export async function POST(request: Request) {
     }
 
     if (!user) {
-      console.error('🔒 [/api/transcribir] Error: No autorizado');
+      console.error('🔊 [API-TRANSCRIBIR] 🔒 Error: No autorizado');
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const doctorId = await resolveDoctorId(supabase, user.id, encounterId);
 
     // 4. Procesamiento con IA (Whisper + Llama)
-    console.log('🧠 [/api/transcribir] Procesando audio con Groq...');
-    console.log(`🎙️ [/api/transcribir] Tamaño del audio: ${(audioFile.size / (1024 * 1024)).toFixed(2)} MB`);
+    console.log('🔊 [API-TRANSCRIBIR] 🧠 Procesando audio con Groq...');
+    console.log(`🔊 [API-TRANSCRIBIR] 🎙️ Tamaño del audio: ${(audioFile.size / (1024 * 1024)).toFixed(2)} MB`);
     
     const startTime = Date.now();
     
@@ -81,13 +83,13 @@ export async function POST(request: Request) {
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(2);
 
-    console.log(`✅ [/api/transcribir] IA respondió en ${duration} segundos`);
-    console.log(`📝 [/api/transcribir] Transcripción (primeros 200 chars): "${resultadoIA.transcripcionOriginal?.substring(0, 200)}..."`);
-    console.log(`📊 [/api/transcribir] Caracteres totales transcribidos: ${resultadoIA.transcripcionOriginal?.length || 0}`);
+    console.log(`🔊 [API-TRANSCRIBIR] ✅ IA respondió en ${duration} segundos`);
+    console.log(`🔊 [API-TRANSCRIBIR] 📝 Transcripción (primeros 200 chars): "${resultadoIA.transcripcionOriginal?.substring(0, 200)}..."`);
+    console.log(`🔊 [API-TRANSCRIBIR] 📊 Caracteres totales transcribidos: ${resultadoIA.transcripcionOriginal?.length || 0}`);
 
     
     // 5. Guardar Nota SOAP en Supabase
-    console.log('💾 [/api/transcribir] Guardando Nota SOAP...');
+    console.log('🔊 [API-TRANSCRIBIR] 💾 Guardando Nota SOAP...');
     const savedSoap: any = await saveSoapNote({
       supabase,
       encounterId,
@@ -101,17 +103,19 @@ export async function POST(request: Request) {
       aiModelVersion: 'llama-3.3-70b-versatile',
     });
 
+    console.log('🔊 [API-TRANSCRIBIR] 🤖 [DEBUG PURO DE GROQ]:', JSON.stringify(resultadoIA.prescripcion, null, 2));
     
     // 6. Guardar Receta en Supabase
-    const medicamentos = resultadoIA.prescripcion?.medicamentos || [];
-    const instrucciones = resultadoIA.prescripcion?.instrucciones || '';
+    const medicamentosCrudos = resultadoIA.prescripcion?.medicamentos || [];
+    const instruccionesCrudas = resultadoIA.prescripcion?.instrucciones || '';
+
+    console.log(`🔊 [API-TRANSCRIBIR] 💊 Medicamentos detectados por la IA: ${medicamentosCrudos.length}`);
 
     let savedPrescription = null;
 
-    if (medicamentos.length > 0) {
-      console.log('💾 [/api/transcribir] Buscando patient_id del encounter...');
+    if (medicamentosCrudos.length > 0) {
+      console.log('🔊 [API-TRANSCRIBIR] 💾 Buscando patient_id del encounter...');
 
-      // Obtenemos el patient_id a partir del encounter_id
       const { data: encounterData, error: encounterError } = await supabase
         .from('encounters')
         .select('patient_id')
@@ -119,57 +123,87 @@ export async function POST(request: Request) {
         .single();
 
       if (encounterError || !encounterData?.patient_id) {
-        console.error('💥 [/api/transcribir] Error obteniendo patient_id:', encounterError);
+        console.error('🔊 [API-TRANSCRIBIR] 💥 Error obteniendo patient_id:', encounterError);
       } else {
         const patientId = encounterData.patient_id;
         const codigoFolio = `REC-${Math.floor(100000 + Math.random() * 900000)}`;
 
-        console.log('💾 [/api/transcribir] Guardando receta médica en Supabase...', {
+        // CIFRAMOS explícitamente los medicamentos e instrucciones antes del INSERT
+        const medicamentosCifrados = medicamentosCrudos.map((med: any) => ({
+          medicamento: encryptText(med.medicamento || med.nombre || med.name || ''),
+          dosis: encryptText(med.dosis || med.dosage || ''),
+          frecuencia: encryptText(med.frecuencia || med.frequency || ''),
+          duracion: encryptText(med.duracion || med.duration || ''),
+          indicaciones: encryptText(med.indicaciones || med.instructions || ''),
+        }));
+
+        const instruccionesCifradas = encryptText(instruccionesCrudas);
+        
+        console.log('🔊 [API-TRANSCRIBIR] 🔐 Guardando receta médica cifrada en Supabase...', {
           patientId,
           doctorId,
           encounterId,
+          codigoFolio,
         });
 
         const { data: rxData, error: rxError } = await supabase
           .from('prescriptions')
           .insert({
             encounter_id: encounterId,
-            patient_id: patientId, // 👈 ¡Campo obligatorio añadido!
+            patient_id: patientId,
             doctor_id: doctorId,
-            medications: medicamentos,
-            instructions: instrucciones,
+            medications: medicamentosCifrados,
+            instructions: instruccionesCifradas,
             prescription_code: codigoFolio,
           })
           .select()
           .single();
 
         if (rxError) {
-          console.error('💥 [/api/transcribir] Error guardando receta:', rxError);
+          console.error('🔊 [API-TRANSCRIBIR] 💥 Error guardando receta en Supabase:', rxError);
         } else {
           savedPrescription = rxData;
-          console.log('✅ [/api/transcribir] Receta guardada exitosamente en Supabase con ID:', rxData.id);
+          console.log('🔊 [API-TRANSCRIBIR] ✅ Receta cifrada guardada exitosamente en Supabase con ID:', rxData.id);
         }
       }
     }
 
-    // ✅ DESPUÉS (Devuelve directamente el texto limpio generado por la IA):
-      return NextResponse.json({
-        success: true,
-        transcript: resultadoIA.transcripcionOriginal,
-        soap: {
-          subjetivo: resultadoIA.notaSOAP.subjetivo,
-          objetivo: resultadoIA.notaSOAP.objetivo,
-          analisis: resultadoIA.notaSOAP.analisis,
-          plan: resultadoIA.notaSOAP.plan,
-        },
-        prescription: {
-          instructions: instrucciones,
-          medications: medicamentos,
-        }
+    if (medicamentosCrudos.length > 0) {
+      console.log('🔊 [API-TRANSCRIBIR] 🔍 Procesando bloque de verificación local de medicamentos...');
+      const med = medicamentosCrudos.map((m: any) => {
+        const mapeado = {
+          medicamento: decryptText(m.medicamento || m.nombre || m.name || ''),
+          dosis: decryptText(m.dosis || m.dosage || ''),
+          frecuencia: decryptText(m.frecuencia || m.frequency || ''),
+          duracion: decryptText(m.duracion || m.duration || ''),
+          indicaciones: decryptText(m.indicaciones || m.instructions || ''),
+        };
+        
+        console.log('🔊 [API-TRANSCRIBIR] 💊 [DEBUG] Medicamento mapeado/verificado:', mapeado);
+        return mapeado;
       });
+    }
+
+    console.log('🔊 [API-TRANSCRIBIR] 🚀 Finalizando petición POST con éxito. Devolviendo respuesta al cliente.');
+
+    // Devuelve los datos originales limpios a la interfaz de usuario
+    return NextResponse.json({
+      success: true,
+      transcript: resultadoIA.transcripcionOriginal,
+      soap: {
+        subjetivo: resultadoIA.notaSOAP.subjetivo,
+        objetivo: resultadoIA.notaSOAP.objetivo,
+        analisis: resultadoIA.notaSOAP.analisis,
+        plan: resultadoIA.notaSOAP.plan,
+      },
+      prescription: {
+        instructions: instruccionesCrudas,
+        medications: medicamentosCrudos,
+      }
+    });
 
   } catch (error: any) {
-    console.error('🔥 [/api/transcribir] Error crítico:', error);
+    console.error('🔊 [API-TRANSCRIBIR] 🔥 Error crítico en endpoint:', error);
     return NextResponse.json(
       { error: error.message || 'Error interno al procesar la transcripción' },
       { status: 500 }
