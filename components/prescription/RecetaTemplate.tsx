@@ -8,6 +8,7 @@ interface RecetaTemplateProps {
   medications: Array<{
     medicamento: string;
     dosis: string;
+    via?: string;
     frecuencia: string;
     duracion: string;
     indicaciones: string;
@@ -20,6 +21,7 @@ interface RecetaTemplateProps {
   } | null;
   doctor: {
     medical_license: string;
+    university?: string | null; // Institución educativa que expidió el título
     specialty: string;
     digital_signature_url: string | null;
     clinic_logo_url: string | null;
@@ -45,6 +47,18 @@ const formatGender = (gender?: string) => {
   return 'Otro';
 };
 
+const calculateAge = (dob?: string) => {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
 export default function RecetaTemplate({
   prescriptionCode,
   createdAt,
@@ -66,6 +80,7 @@ export default function RecetaTemplate({
   ].filter(Boolean);
 
   const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : null;
+  const patientAge = calculateAge(patient?.date_of_birth);
 
   return (
     <div className="rounded-2xl bg-white p-6 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-200/80 space-y-8 print:shadow-none print:border-none print:p-0 print:space-y-6">
@@ -90,14 +105,20 @@ export default function RecetaTemplate({
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-tight leading-tight">RECETA MÉDICA</h1>
-            <p className="text-[11px] text-slate-400 font-medium mt-0.5">Conforme a la NOM-004-SSA3-2012</p>
           </div>
         </div>
 
-        <div className="text-left sm:text-right text-xs text-slate-600 space-y-1.5 bg-slate-50 sm:bg-transparent p-4 sm:p-0 rounded-xl w-full sm:w-72 shrink-0">
+        <div className="text-left sm:text-right text-xs text-slate-600 space-y-1.5 bg-slate-50 sm:bg-transparent p-4 sm:p-0 rounded-xl w-full sm:w-80 shrink-0">
           <div className="font-bold text-slate-900 text-sm">{doctorNombre}</div>
-          <div className="font-medium text-[#0052FF]">{doctor?.specialty || 'General'}</div>
-          <div><span className="text-slate-400">Cédula Prof: </span><span className="font-semibold text-slate-800">{doctor?.medical_license || 'S/N'}</span></div>
+          <div className="font-semibold text-slate-800">{doctor?.specialty || 'General'}</div>
+          <div>
+            <span className="text-slate-400">Cédula Prof: </span>
+            <span className="font-semibold text-slate-800">{doctor?.medical_license || 'S/N'}</span>
+          </div>
+            <div>
+              <span className="text-slate-400">Institución: </span>
+              <span className="font-semibold text-slate-800">{doctor?.university || ''}</span>
+            </div>
           {doctor?.phone && <div><span className="text-slate-400">Tel: </span>{doctor.phone}</div>}
           {fullAddress && <div><span className="text-slate-400">Dir: </span>{fullAddress}</div>}
           <div className="pt-1 text-[11px] text-slate-400">
@@ -112,9 +133,11 @@ export default function RecetaTemplate({
           <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Paciente</span>
           <strong className="text-base font-bold text-slate-800 uppercase">{patient?.first_name} {patient?.last_name}</strong>
         </div>
-        <div className="text-xs text-right">
-          <span className="text-slate-400 block">Nacimiento: {patient?.date_of_birth || 'N/R'}</span>
-          <span className="text-slate-400 block">Género: {formatGender(patient?.gender)}</span>
+        <div className="text-xs text-right space-y-0.5">
+          <span className="text-slate-600 block font-medium">
+            Nacimiento: {patient?.date_of_birth || 'N/R'} {patientAge !== null && `(${patientAge} años)`}
+          </span>
+          <span className="text-slate-500 block">Género: {formatGender(patient?.gender)}</span>
         </div>
       </div>
 
@@ -129,8 +152,9 @@ export default function RecetaTemplate({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase">
-                <th className="p-3">Medicamento</th>
+                <th className="p-3">Medicamento / Presentación</th>
                 <th className="p-3">Dosis</th>
+                <th className="p-3">Vía</th>
                 <th className="p-3">Frecuencia</th>
                 <th className="p-3">Duración</th>
                 <th className="p-3">Indicaciones</th>
@@ -142,6 +166,7 @@ export default function RecetaTemplate({
                   <tr key={idx} className="hover:bg-slate-50/50">
                     <td className="p-3 font-semibold text-slate-900">{med.medicamento}</td>
                     <td className="p-3">{med.dosis}</td>
+                    <td className="p-3 ">{med.via || 'Oral'}</td>
                     <td className="p-3">{med.frecuencia}</td>
                     <td className="p-3">{med.duracion}</td>
                     <td className="p-3 text-slate-500">{med.indicaciones}</td>
@@ -149,7 +174,7 @@ export default function RecetaTemplate({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-slate-400 italic">
+                  <td colSpan={6} className="p-4 text-center text-slate-400 italic">
                     No hay medicamentos prescritos en esta receta.
                   </td>
                 </tr>
@@ -166,15 +191,20 @@ export default function RecetaTemplate({
         )}
       </div>
 
-      {/* FIRMA */}
+      {/* FIRMA Y SELLO */}
       <div className="pt-16 sm:pt-20 mt-8 border-t border-slate-200 text-center text-xs text-slate-500 space-y-2 print:break-inside-avoid">
         {doctor?.digital_signature_url ? (
-          <img src={doctor.digital_signature_url} alt="Firma" className="h-16 mx-auto object-contain mb-1" />
+          <div className="flex flex-col items-center justify-center">
+            <img src={doctor.digital_signature_url} alt="Firma Electrónica" className="h-16 mx-auto object-contain mb-1" />
+            <span className="text-[10px] text-slate-400 font-mono">Firma Electrónica / Sello Digital Validado</span>
+          </div>
         ) : (
-          <div className="w-56 mx-auto border-b border-slate-400 pt-10"></div>
+          <div className="w-64 mx-auto border-b border-slate-400 pt-10"></div>
         )}
-        <p className="font-bold text-slate-800">{doctorNombre}</p>
-        <p className="text-[10px] text-slate-400">Cédula Prof: {doctor?.medical_license || 'S/N'} | {doctor?.specialty || 'General'}</p>
+        <p className="font-bold text-slate-800 pt-1">{doctorNombre}</p>
+        <p className="text-[10px] text-slate-500">
+          Cédula Prof: {doctor?.medical_license || 'S/N'} {doctor?.university ? `| Univ: ${doctor.university}` : ''} | {doctor?.specialty || 'General'}
+        </p>
       </div>
 
     </div>

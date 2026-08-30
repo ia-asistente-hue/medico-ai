@@ -88,6 +88,7 @@ useEffect(() => {
         },
         doctor: {
           medical_license: data.doctor_medical_license || '',
+          university: data.doctor_university || null,
           specialty: data.doctor_specialty || 'General',
           phone: data.doctor_phone || '',
           street_address: data.doctor_street_address || '',

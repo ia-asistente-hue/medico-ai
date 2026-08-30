@@ -118,6 +118,7 @@ export default function RecetaDetailPage() {
         patient: decryptedPatient,
         doctor: rawDoctor ? {
           medical_license: rawDoctor.medical_license || '',
+          university: rawDoctor.university || null,
           specialty: rawDoctor.specialty || '',
           digital_signature_url: rawDoctor.digital_signature_url || null,
           clinic_logo_url: rawDoctor.clinic_logo_url || null,

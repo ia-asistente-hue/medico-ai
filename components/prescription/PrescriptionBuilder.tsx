@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 interface Medicamento {
   medicamento: string;
   dosis: string;
+  via: string;
   frecuencia: string;
   duracion: string;
   indicaciones: string;
@@ -13,7 +14,7 @@ interface Medicamento {
 
 interface PrescriptionBuilderProps {
   medicamentos: Medicamento[];
-  nuevoMed: Medicamento; // Se mantiene por compatibilidad si el padre lo manda, pero ya no dependemos de él para los inputs
+  nuevoMed: Medicamento;
   instruccionesReceta: string;
   onUpdateNuevoMed: (field: keyof Medicamento, val: string) => void;
   onAgregarMedicamento: () => void;
@@ -26,6 +27,7 @@ interface PrescriptionBuilderProps {
 const emptyMed: Medicamento = {
   medicamento: '',
   dosis: '',
+  via: 'Oral', // Valor predeterminado común para agilizar captura
   frecuencia: '',
   duracion: '',
   indicaciones: '',
@@ -34,7 +36,6 @@ const emptyMed: Medicamento = {
 export default function PrescriptionBuilder({
   medicamentos = [],
   instruccionesReceta,
-  onAgregarMedicamento,
   onEliminarMedicamento,
   onUpdateInstrucciones,
   onGuardarNota,
@@ -52,6 +53,7 @@ export default function PrescriptionBuilder({
     setFormState({
       medicamento: med.medicamento || med.nombre || '',
       dosis: med.dosis || '',
+      via: med.via || 'Oral',
       frecuencia: med.frecuencia || '',
       duracion: med.duracion || '',
       indicaciones: med.indicaciones || '',
@@ -65,11 +67,9 @@ export default function PrescriptionBuilder({
       medicamentos[editingIndex] = { ...formState };
       setEditingIndex(null);
     } else {
-      // Agregamos directamente a la lista del padre usando el estado local actual
       medicamentos.push({ ...formState });
     }
     
-    // 🧹 Limpieza inmediata del formulario local
     setFormState(emptyMed);
   };
 
@@ -83,7 +83,7 @@ export default function PrescriptionBuilder({
       <div className="border-b border-slate-100 pb-4">
         <h2 className="text-lg font-bold text-slate-800">Receta Médica</h2>
         <p className="text-xs text-slate-500">
-          Medicamentos prescritos en la consulta.
+          Medicamentos prescritos en la consulta conforme a normatividad.
         </p>
       </div>
 
@@ -97,6 +97,7 @@ export default function PrescriptionBuilder({
           {medicamentos.map((med: any, idx: number) => {
             const nombre = med.medicamento || med.nombre || 'Medicamento sin nombre';
             const dosis = med.dosis || '';
+            const via = med.via || 'Oral';
             const frecuencia = med.frecuencia || '';
             const duracion = med.duracion || '';
             const indicaciones = med.indicaciones || '';
@@ -115,11 +116,9 @@ export default function PrescriptionBuilder({
                   <p className="font-bold text-slate-800">
                     {nombre} {dosis && <span className="font-semibold text-blue-600">— {dosis}</span>}
                   </p>
-                  {(frecuencia || duracion) && (
-                    <p className="text-slate-600">
-                      {frecuencia} {duracion ? `durante ${duracion}` : ''}
-                    </p>
-                  )}
+                  <p className="text-slate-600 font-medium">
+                    Vía: <span className="text-slate-700">{via}</span> {frecuencia ? `| ${frecuencia}` : ''} {duracion ? `durante ${duracion}` : ''}
+                  </p>
                   {indicaciones && (
                     <p className="text-slate-500 italic text-[11px]">
                       Nota: {indicaciones}
@@ -171,12 +170,12 @@ export default function PrescriptionBuilder({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">Medicamento</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="space-y-1 sm:col-span-2">
+            <label className="block text-[11px] font-semibold text-slate-600">Medicamento (Nombre y Presentación)</label>
             <input
               type="text"
-              placeholder="Ej. Paracetamol, Ibuprofeno..."
+              placeholder="Ej. Omeprazol 20 mg (Cápsulas)"
               value={formState.medicamento}
               onChange={(e) => handleInputChange('medicamento', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -187,7 +186,7 @@ export default function PrescriptionBuilder({
             <label className="block text-[11px] font-semibold text-slate-600">Dosis</label>
             <input
               type="text"
-              placeholder="Ej. 500 mg, 1 tableta..."
+              placeholder="Ej. 1 cápsula..."
               value={formState.dosis}
               onChange={(e) => handleInputChange('dosis', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -195,10 +194,32 @@ export default function PrescriptionBuilder({
           </div>
 
           <div className="space-y-1">
+            <label className="block text-[11px] font-semibold text-slate-600">Vía de Administración</label>
+            <select
+              value={formState.via}
+              onChange={(e) => handleInputChange('via', e.target.value)}
+              className="w-full p-2.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Oral">Oral</option>
+              <option value="Intravenosa">Intravenosa</option>
+              <option value="Intramuscular">Intramuscular</option>
+              <option value="Tópica">Tópica</option>
+              <option value="Sublingual">Sublingual</option>
+              <option value="Oftálmica">Oftálmica</option>
+              <option value="Ótica">Ótica</option>
+              <option value="Nasal">Nasal</option>
+              <option value="Inhalatoria">Inhalatoria / Nebulización</option>
+              <option value="Rectal">Rectal</option>
+              <option value="Vaginal">Vaginal</option>
+              <option value="Subcutánea">Subcutánea</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
             <label className="block text-[11px] font-semibold text-slate-600">Frecuencia</label>
             <input
               type="text"
-              placeholder="Ej. Cada 8 horas..."
+              placeholder="Ej. Cada 24 horas..."
               value={formState.frecuencia}
               onChange={(e) => handleInputChange('frecuencia', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -209,18 +230,18 @@ export default function PrescriptionBuilder({
             <label className="block text-[11px] font-semibold text-slate-600">Duración</label>
             <input
               type="text"
-              placeholder="Ej. 5 días..."
+              placeholder="Ej. 14 días..."
               value={formState.duracion}
               onChange={(e) => handleInputChange('duracion', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="sm:col-span-2 space-y-1">
+          <div className="sm:col-span-3 space-y-1">
             <label className="block text-[11px] font-semibold text-slate-600">Indicaciones Específicas</label>
             <input
               type="text"
-              placeholder="Ej. Tomar con alimentos..."
+              placeholder="Ej. Tomar en ayunas con agua..."
               value={formState.indicaciones}
               onChange={(e) => handleInputChange('indicaciones', e.target.value)}
               className="w-full p-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
