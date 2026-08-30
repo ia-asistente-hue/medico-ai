@@ -399,8 +399,43 @@ function NuevaConsultaContent() {
     }
   };
 
-  const handleGuardarNota = async () => {
+const handleGuardarNota = async () => {
     if (!encounterId || !editableSoap || !doctorId || !selectedPatient) return;
+
+    let medicamentosFinales = [...medicamentos];
+
+    // 🛡️ PASO 1: Validar si dejó texto a medias en los inputs de medicamento sin agregar
+    if (nuevoMed.medicamento.trim() || nuevoMed.dosis.trim()) {
+      const agregarPendiente = window.confirm(
+        `Tienes información escrita en los campos de "Agregar Medicamento" ("${nuevoMed.medicamento}"), pero no la has añadido a la receta.\n\n¿Deseas agregarla automáticamente antes de continuar?`
+      );
+
+      if (agregarPendiente) {
+        medicamentosFinales.push(nuevoMed);
+        setMedicamentos(medicamentosFinales);
+      } else {
+        return; // Si cancela, se detiene el proceso para que revise
+      }
+    }
+
+    // 🛡️ PASO 2: Validar si la receta va completamente vacía
+    if (medicamentosFinales.length === 0) {
+      const confirmarSinReceta = window.confirm(
+        "Estás a punto de finalizar la consulta sin ningún medicamento en la receta. ¿Deseas continuar únicamente con la Nota SOAP?"
+      );
+      if (!confirmarSinReceta) {
+        return; 
+      }
+    }
+
+    // 🛡️ PASO 3 (CIERRE): Confirmación obligatoria de revisión y validación de los datos generados por la IA
+    const confirmarRevision = window.confirm(
+      "Por favor, asegúrate de haber revisado y actualizado la Nota SOAP y la receta generada por la IA en caso de ser necesario.\n\n¿Los datos son correctos y deseas finalizar y guardar la consulta?"
+    );
+    if (!confirmarRevision) {
+      return; // Si el médico cancela, se queda en la pantalla para hacer los ajustes necesarios
+    }
+
     setSaving(true);
     setErrorMessage(null);
 
@@ -420,12 +455,12 @@ function NuevaConsultaContent() {
 
       if (soapError) throw soapError;
 
-      if (medicamentos.length > 0) {
+      if (medicamentosFinales.length > 0) {
         await guardarRecetaSeguraAction({
           encounterId,
           doctorId,
           patientId: selectedPatient.id,
-          medicamentos,
+          medicamentos: medicamentosFinales,
           instruccionesReceta,
         });
       }
@@ -443,6 +478,8 @@ function NuevaConsultaContent() {
       setSaving(false);
     }
   };
+
+
 
   const currentStep = !encounterId ? 1 : !editableSoap ? 2 : 3;
 
@@ -480,17 +517,52 @@ function NuevaConsultaContent() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-        {/* BARRA DE PROGRESO DE PASOS MEJORADA */}
-        <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-200/80">
-          <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
-            <div className={`p-2.5 rounded-xl transition-all ${currentStep === 1 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
-              <span className="block sm:inline">1. </span>Paciente
+        {/* BARRA DE PROGRESO / STEPPER MODERNO */}
+        <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-200/80">
+          <div className="flex items-center justify-between max-w-2xl mx-auto relative">
+            <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100 z-0"></div>
+
+            <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
+                currentStep > 1 
+                  ? 'bg-emerald-500 text-white' 
+                  : currentStep === 1 
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+                  : 'bg-slate-100 text-slate-600'
+              }`}>
+                {currentStep > 1 ? '✓' : '1'}
+              </div>
+              <span className={`text-xs font-semibold ${currentStep === 1 ? 'text-[#0052FF]' : currentStep > 1 ? 'text-emerald-700 font-medium' : 'text-slate-700'}`}>
+                Paciente
+              </span>
             </div>
-            <div className={`p-2.5 rounded-xl transition-all ${currentStep === 2 ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-400'}`}>
-              <span className="block sm:inline">2. </span>Toma de Notas
+
+            <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
+                currentStep > 2 
+                  ? 'bg-emerald-500 text-white' 
+                  : currentStep === 2 
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+                  : 'bg-slate-100 text-slate-700'
+              }`}>
+                {currentStep > 2 ? '✓' : '2'}
+              </div>
+              <span className={`text-xs font-semibold ${currentStep === 2 ? 'text-[#0052FF]' : currentStep > 2 ? 'text-emerald-700 font-medium' : 'text-slate-700'}`}>
+                Toma de Notas
+              </span>
             </div>
-            <div className={`p-2.5 rounded-xl transition-all ${currentStep === 3 ? 'bg-blue-50 text-[#0052FF]' : 'text-slate-400'}`}>
-              <span className="block sm:inline">3. </span>SOAP y Receta
+
+            <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
+                currentStep === 3 
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+                  : 'bg-slate-100 text-slate-700'
+              }`}>
+                3
+              </div>
+              <span className={`text-xs font-semibold ${currentStep === 3 ? 'text-[#0052FF]' : 'text-slate-700'}`}>
+                SOAP y Receta
+              </span>
             </div>
           </div>
         </div>
@@ -513,123 +585,146 @@ function NuevaConsultaContent() {
               <button
                 type="button"
                 onClick={() => setIsNewPatientModalOpen(true)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors cursor-pointer"
               >
                 + Nuevo Paciente
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="relative" ref={patientDropdownRef}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                    Buscar o seleccionar paciente registrado
-                  </label>
-                  {selectedPatient ? (
-                    <div className="flex items-center gap-2">
-                      {selectedPatient.chart_number && (
-                        <span className="text-xs font-mono font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                          {selectedPatient.chart_number}
+              {selectedPatient ? (
+                /* TARJETA DE PACIENTE SELECCIONADO OPTIMIZADA (UX MÉDICA) */
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          Paciente listo para consulta
                         </span>
-                      )}
-                      <Link
-                        href={`/pacientes/${selectedPatient.id}`}
-                        className="text-xs font-semibold text-[#0052FF] hover:underline flex items-center gap-1 transition-all"
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setSelectedPatient(null);
+                          setPatientQuery('');
+                          setIsPatientDropdownOpen(true);
+                        }}
+                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors cursor-pointer"
                       >
-                        Ver Expediente ↗
-                      </Link>
+                        Cambiar paciente ✕
+                      </button>
                     </div>
-                  ) : (
-                    <span className="text-xs text-slate-400 select-none">Ver Expediente</span>
-                  )}
-                </div>
 
-                <div 
-                  onClick={() => setIsPatientDropdownOpen(true)}
-                  className={`flex items-center justify-between w-full rounded-xl border bg-slate-50/50 px-4 py-3 text-sm text-[#1A202C] cursor-pointer transition-all ${
-                    selectedPatient 
-                      ? 'border-blue-300 bg-blue-50/30 ring-2 ring-[#0052FF]/10' 
-                      : 'border-slate-200 focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0052FF]/10'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    {selectedPatient && (
-                      <span className="flex h-2 w-2 rounded-full bg-[#0052FF]"></span>
-                    )}
-                    <input
-                      type="text"
-                      value={patientQuery}
-                      onChange={(e) => {
-                        setPatientQuery(e.target.value);
-                        setIsPatientDropdownOpen(true);
-                        if (selectedPatient) setSelectedPatient(null);
-                      }}
-                      placeholder="-- Buscar por Nombre, CURP o Folio --"
-                      className="w-full bg-transparent outline-none placeholder-slate-400 text-slate-700 font-medium cursor-text"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {selectedPatient && (
-                      <span className="text-xs font-semibold text-[#0052FF] bg-blue-100/70 px-2 py-0.5 rounded-md">
-                        Seleccionado
-                      </span>
-                    )}
-                    <svg className={`h-4 w-4 text-slate-400 transition-transform ${isPatientDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <h4 className="text-base font-bold text-slate-800">
+                            {selectedPatient.first_name} {selectedPatient.last_name}
+                          </h4>
+                          {selectedPatient.chart_number && (
+                            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                              {selectedPatient.chart_number}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {selectedPatient.curp ? `CURP: ${selectedPatient.curp}` : 'Expediente clínico sincronizado'}
+                        </p>
+                      </div>
 
-                {/* Dropdown flotante */}
-                {isPatientDropdownOpen && (
-                  <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl bg-white border border-slate-100 shadow-xl shadow-slate-200/60 p-1">
-                    {filteredPatients.length > 0 ? (
-                      filteredPatients.map((patient) => {
-                        const fullName = `${patient.first_name} ${patient.last_name}`;
-                        return (
-                          <div
-                            key={patient.id}
-                            onClick={() => {
-                              setSelectedPatient(patient);
-                              setPatientQuery(fullName);
-                              setIsPatientDropdownOpen(false);
-                            }}
-                            className="flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0052FF] rounded-lg cursor-pointer transition-colors"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{fullName}</span>
-                              {patient.chart_number && (
-                                <span className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                  {patient.chart_number}
-                                </span>
-                              )}
-                            </div>
-                            {selectedPatient?.id === patient.id && (
-                              <svg className="h-4 w-4 text-[#0052FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/pacientes/${selectedPatient.id}`}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors cursor-pointer"
+                        >
+                          Ver Expediente ↗
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={iniciarEncuentro}
+                    className="w-full rounded-xl bg-[#0052FF] text-white py-3.5 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-all cursor-pointer"
+                  >
+                    Iniciar Consulta Médica con {selectedPatient.first_name} →
+                  </button>
+                </div>
+              ) : (
+                /* BUSCADOR INTERACTIVO (CUANDO NO HAY PACIENTE SELECCIONADO) */
+                <div className="space-y-4">
+                  <div className="relative" ref={patientDropdownRef}>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                      Buscar o seleccionar paciente registrado
+                    </label>
+
+                    <div 
+                      onClick={() => setIsPatientDropdownOpen(true)}
+                      className="flex items-center gap-2.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-[#1A202C] cursor-pointer focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0052FF]/10 transition-all"
+                    >
+                      <svg className="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={patientQuery}
+                        onChange={(e) => {
+                          setPatientQuery(e.target.value);
+                          setIsPatientDropdownOpen(true);
+                        }}
+                        placeholder="Escribe el nombre, CURP o folio del paciente..."
+                        className="w-full bg-transparent outline-none placeholder-slate-400 text-slate-700 font-medium cursor-text"
+                      />
+                    </div>
+
+                    {/* Dropdown flotante de resultados */}
+                    {isPatientDropdownOpen && (
+                      <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl bg-white border border-slate-100 shadow-xl shadow-slate-200/60 p-1">
+                        {filteredPatients.length > 0 ? (
+                          filteredPatients.map((patient) => {
+                            const fullName = `${patient.first_name} ${patient.last_name}`;
+                            return (
+                              <div
+                                key={patient.id}
+                                onClick={() => {
+                                  setSelectedPatient(patient);
+                                  setPatientQuery(fullName);
+                                  setIsPatientDropdownOpen(false);
+                                }}
+                                className="flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0052FF] rounded-lg cursor-pointer transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{fullName}</span>
+                                  {patient.chart_number && (
+                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                      {patient.chart_number}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="px-4 py-3 text-xs text-slate-400 text-center">
+                            No se encontraron pacientes
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className="px-4 py-3 text-xs text-slate-400 text-center">
-                        No se encontraron pacientes
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
 
-              <button
-                type="button"
-                disabled={!selectedPatient}
-                onClick={iniciarEncuentro}
-                className="w-full rounded-xl bg-[#0052FF] text-white py-3 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 disabled:bg-slate-300 disabled:shadow-none transition-all cursor-pointer disabled:cursor-not-allowed"
-              >
-                Iniciar Consulta Médica →
-              </button>
+                  <button
+                    type="button"
+                    disabled={!selectedPatient}
+                    onClick={iniciarEncuentro}
+                    className="w-full rounded-xl bg-[#0052FF] text-white py-3 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 disabled:bg-slate-300 disabled:shadow-none transition-all cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    Iniciar Consulta Médica →
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

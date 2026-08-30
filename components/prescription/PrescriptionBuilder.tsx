@@ -1,7 +1,7 @@
 // components/PrescriptionBuilder.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface Medicamento {
   medicamento: string;
@@ -13,7 +13,7 @@ interface Medicamento {
 
 interface PrescriptionBuilderProps {
   medicamentos: Medicamento[];
-  nuevoMed: Medicamento;
+  nuevoMed: Medicamento; // Se mantiene por compatibilidad si el padre lo manda, pero ya no dependemos de él para los inputs
   instruccionesReceta: string;
   onUpdateNuevoMed: (field: keyof Medicamento, val: string) => void;
   onAgregarMedicamento: () => void;
@@ -33,9 +33,7 @@ const emptyMed: Medicamento = {
 
 export default function PrescriptionBuilder({
   medicamentos = [],
-  nuevoMed,
   instruccionesReceta,
-  onUpdateNuevoMed,
   onAgregarMedicamento,
   onEliminarMedicamento,
   onUpdateInstrucciones,
@@ -43,68 +41,41 @@ export default function PrescriptionBuilder({
   saving,
 }: PrescriptionBuilderProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-
-  // Sincronizar estado local con nuevoMed cuando se propague del padre (ej. IA) y no estemos editando
   const [formState, setFormState] = useState<Medicamento>(emptyMed);
-
-  useEffect(() => {
-    if (editingIndex === null && nuevoMed) {
-      setFormState({
-        medicamento: nuevoMed.medicamento || (nuevoMed as any).nombre || '',
-        dosis: nuevoMed.dosis || '',
-        frecuencia: nuevoMed.frecuencia || '',
-        duracion: nuevoMed.duracion || '',
-        indicaciones: nuevoMed.indicaciones || '',
-      });
-    }
-  }, [nuevoMed, editingIndex]);
 
   const handleInputChange = (field: keyof Medicamento, val: string) => {
     setFormState((prev) => ({ ...prev, [field]: val }));
-    onUpdateNuevoMed(field, val);
-  };
-
-  const resetForm = () => {
-    setFormState(emptyMed);
-    (Object.keys(emptyMed) as (keyof Medicamento)[]).forEach((key) => {
-      onUpdateNuevoMed(key, '');
-    });
   };
 
   const handleStartEdit = (idx: number, med: any) => {
     setEditingIndex(idx);
-    const dataToEdit: Medicamento = {
+    setFormState({
       medicamento: med.medicamento || med.nombre || '',
       dosis: med.dosis || '',
       frecuencia: med.frecuencia || '',
       duracion: med.duracion || '',
       indicaciones: med.indicaciones || '',
-    };
-
-    setFormState(dataToEdit);
-    
-    // Sincronizar con el padre en modo edición
-    Object.entries(dataToEdit).forEach(([key, val]) => {
-      onUpdateNuevoMed(key as keyof Medicamento, val);
     });
   };
 
   const handleSave = () => {
-    if (!formState.medicamento.trim()) return;
+    if (!formState.medicamento.trim() || !formState.dosis.trim()) return;
 
     if (editingIndex !== null) {
       medicamentos[editingIndex] = { ...formState };
       setEditingIndex(null);
     } else {
-      onAgregarMedicamento();
+      // Agregamos directamente a la lista del padre usando el estado local actual
+      medicamentos.push({ ...formState });
     }
-
-    resetForm();
+    
+    // 🧹 Limpieza inmediata del formulario local
+    setFormState(emptyMed);
   };
 
   const handleCancelEdit = () => {
     setEditingIndex(null);
-    resetForm();
+    setFormState(emptyMed);
   };
 
   return (
@@ -260,11 +231,7 @@ export default function PrescriptionBuilder({
         <button
           type="button"
           onClick={handleSave}
-          className={`w-full py-2.5 text-xs font-semibold rounded-xl transition-all shadow-sm ${
-            editingIndex !== null
-              ? 'bg-blue-600 hover:bg-blue-700 text-white'
-              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-          }`}
+          className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
         >
           {editingIndex !== null ? 'Guardar Cambios del Medicamento' : '+ Añadir a la Receta'}
         </button>
@@ -288,7 +255,7 @@ export default function PrescriptionBuilder({
           type="button"
           onClick={onGuardarNota}
           disabled={saving}
-          className="px-6 py-2.5 bg-[#0052FF] hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all disabled:opacity-50"
+          className="px-6 py-2.5 bg-[#0052FF] hover:bg-blue-700 text-white font-medium text-xs rounded-xl shadow-sm transition-all disabled:opacity-50 cursor-pointer"
         >
           {saving ? 'Guardando...' : 'Finalizar Consulta y Guardar Nota'}
         </button>

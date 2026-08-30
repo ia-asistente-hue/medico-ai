@@ -202,8 +202,24 @@ useEffect(() => {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none space-y-6">
-        
-        {/* 📝 NOTA SOAP (VISIBLE EN PANTALLA, OCULTA AL IMPRIMIR) */}
+       
+          {/* 💊 RECETA MÉDICA REUTILIZANDO EL COMPONENTE (SIEMPRE VISIBLE) */}
+          <RecetaTemplate
+            prescriptionCode={encounter.prescription?.prescription_code || 'S/F'}
+            createdAt={encounter.created_at}
+            instructions={encounter.prescription?.instructions || null}
+            medications={(encounter.prescription?.medications || []).map((med: any) => ({
+              medicamento: med.medicamento || med.nombre || med.name || '',
+              dosis: med.dosis || med.dosage || '',
+              frecuencia: med.frecuencia || med.frequency || '',
+              duracion: med.duracion || med.duration || '',
+              indicaciones: med.indicaciones || med.instructions || '',
+            }))}
+            patient={encounter.patient}
+            doctor={encounter.doctor}
+          />
+
+      {/* 📝 NOTA SOAP (VISIBLE EN PANTALLA, OCULTA AL IMPRIMIR) */}
         {encounter.soap_note ? (
           <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-sm space-y-6 print:hidden">
             <div className="border-b border-slate-100 pb-2">
@@ -255,28 +271,6 @@ useEffect(() => {
         ) : (
           <div className="rounded-xl bg-amber-50 p-4 text-xs font-medium text-amber-800 border border-amber-200 print:hidden">
             Esta consulta aún no cuenta con una nota SOAP registrada.
-          </div>
-        )}
-
-        {/* 💊 RECETA MÉDICA REUTILIZANDO EL COMPONENTE */}
-        {encounter.prescription ? (
-          <RecetaTemplate
-            prescriptionCode={encounter.prescription.prescription_code}
-            createdAt={encounter.created_at}
-            instructions={encounter.prescription.instructions}
-            medications={(encounter.prescription?.medications || []).map((med: any) => ({
-              medicamento: med.medicamento || '',
-              dosis: med.dosis || '',
-              frecuencia: med.frecuencia || '',
-              duracion: med.duracion || '',
-              indicaciones: med.indicaciones || '',
-            }))}
-            patient={encounter.patient}
-            doctor={encounter.doctor}
-          />
-        ) : (
-          <div className="rounded-2xl bg-white p-6 border border-slate-200 text-xs text-slate-400 italic text-center">
-            No hay receta médica registrada para esta consulta.
           </div>
         )}
 
