@@ -13,8 +13,8 @@ interface Patient {
   email?: string | null;
   gender?: string;
   blood_type?: string;
-  allergies?: string[];
-  chronic_conditions?: string[];
+  allergies?: string | null;
+  chronic_conditions?: string | null;
 }
 
 interface PatientSelectorProps {
@@ -29,8 +29,8 @@ interface PatientSelectorProps {
     email?: string;
     gender: string;
     blood_type: string;
-    allergies: string[];
-    chronic_conditions: string[];
+    allergies: string;
+    chronic_conditions: string;
   }) => Promise<void>;
   onStartEncounter: () => void;
   errorMessage?: string | null;
@@ -66,12 +66,8 @@ export default function PatientSelector({
     try {
       const formattedPatient = {
         ...newPatient,
-        allergies: newPatient.allergies
-          ? newPatient.allergies.split(',').map((s) => s.trim()).filter(Boolean)
-          : [],
-        chronic_conditions: newPatient.chronic_conditions
-          ? newPatient.chronic_conditions.split(',').map((s) => s.trim()).filter(Boolean)
-          : [],
+        allergies: newPatient.allergies || '',
+        chronic_conditions: newPatient.chronic_conditions || '',
       };
 
       await onCreatePatient(formattedPatient);

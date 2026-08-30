@@ -45,9 +45,11 @@ export interface Database {
           email: string | null
           gender: 'masculino' | 'femenino' | 'otro' | null
           blood_type: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
-          allergies: string[] | null
-          chronic_conditions: string[] | null
-          emergency_contact: Json | null
+          allergies: string | null
+          chronic_conditions: string | null
+          emergency_name: string | null
+          emergency_phone: string | null
+          emergency_relationship: string | null
           created_at?: string
           updated_at?: string
         }
@@ -61,9 +63,11 @@ export interface Database {
           email?: string | null
           gender?: 'masculino' | 'femenino' | 'otro' | null
           blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
-          allergies?: string[] | null
-          chronic_conditions?: string[] | null
-          emergency_contact?: Json | null
+          allergies?: string | null
+          chronic_conditions?: string | null
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relationship?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -77,9 +81,11 @@ export interface Database {
           email?: string | null
           gender?: 'masculino' | 'femenino' | 'otro' | null
           blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null
-          allergies?: string[] | null
-          chronic_conditions?: string[] | null
-          emergency_contact?: Json | null
+          allergies?: string | null
+          chronic_conditions?: string | null
+          emergency_name?: string | null
+          emergency_phone?: string | null
+          emergency_relationship?: string | null
           updated_at?: string
         }
       }

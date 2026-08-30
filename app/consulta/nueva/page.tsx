@@ -24,9 +24,11 @@ interface Patient {
   date_of_birth: string;
   gender?: 'masculino' | 'femenino' | 'otro' | null;
   blood_type?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | null;
-  allergies?: string[];
-  chronic_conditions?: string[];
-  emergency_contact?: Record<string, any>;
+  allergies?: string;
+  chronic_conditions?: string;
+  emergency_name?: string;
+  emergency_phone?: string;
+  emergency_relationship?: string;
   phone?: string | null;
   email?: string | null;
   street_address?: string | null;
