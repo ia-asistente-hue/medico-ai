@@ -336,94 +336,95 @@ export default function ExpedienteClinicoPage() {
                 minute: '2-digit',
               });
 
-              return (
-                <div
-                  key={enc.id}
-                  className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden transition-all"
-                >
-                  <div
-                    onClick={() => setExpandedEncounter(isExpanded ? null : enc.id)}
-                    className="p-4 bg-slate-50/60 hover:bg-slate-100/60 cursor-pointer flex items-center justify-between border-b border-slate-100"
-                  >
-                    <div>
-                      <span className="text-xs font-bold text-slate-800 block">
-                        Consulta Médica — {dateStr}
-                      </span>
-                      {enc.soap_notes?.assessment && (
-                        <p className="text-xs text-[#0052FF] font-semibold mt-0.5">
-                          Diagnóstico: {enc.soap_notes.assessment}
-                        </p>
-                      )}
-                    </div>
+                return (
+  <div
+    key={enc.id}
+    className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden transition-all"
+  >
+    {/* Cabecera fija que actúa como disparador */}
+    <div
+      onClick={() => setExpandedEncounter(isExpanded ? null : enc.id)}
+      className="p-4 bg-slate-50/60 hover:bg-slate-100/60 cursor-pointer flex items-center justify-between"
+    >
+      <div className="pr-4">
+        <span className="text-xs font-bold text-slate-800 block">
+          Consulta Médica — {dateStr}
+        </span>
+        {enc.soap_notes?.assessment && (
+          <p className="text-xs text-[#0052FF] font-semibold mt-0.5">
+            Diagnóstico: {enc.soap_notes.assessment}
+          </p>
+        )}
+      </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">
-                        {enc.status}
-                      </span>
-                      <span className="text-slate-400 text-xs">
-                        {isExpanded ? '▲' : '▼'}
-                      </span>
-                    </div>
-                  </div>
+      {/* Botón estático en la misma posición con indicador visual fluido */}
+      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-200/70 text-slate-700 font-bold text-[10px] uppercase tracking-wider shrink-0 transition-colors">
+        <span>Detalle</span>
+        <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+          ▼
+        </span>
+      </div>
+    </div>
 
-                  {isExpanded && (
-                    <div className="p-5 space-y-4 text-xs">
-                      {enc.soap_notes ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
-                            <span className="font-bold text-slate-700 block">S - Subjetivo (Motivo / Síntomas):</span>
-                            <p className="text-slate-600 whitespace-pre-line">
-                              {enc.soap_notes.subjective || 'Sin registro'}
-                            </p>
-                          </div>
+    {/* Contenido desplegable con transición suave */}
+    {isExpanded && (
+      <div className="p-5 space-y-4 text-xs border-t border-slate-100 animate-fadeIn">
+        {enc.soap_notes ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
+              <span className="font-bold text-slate-700 block">S - Subjetivo (Motivo / Síntomas):</span>
+              <p className="text-slate-600 whitespace-pre-line">
+                {enc.soap_notes.subjective || 'Sin registro'}
+              </p>
+            </div>
 
-                          <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
-                            <span className="font-bold text-slate-700 block">O - Objetivo (Exploración / Signos):</span>
-                            <p className="text-slate-600 whitespace-pre-line">
-                              {enc.soap_notes.objective || 'Sin registro'}
-                            </p>
-                          </div>
+            <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
+              <span className="font-bold text-slate-700 block">O - Objetivo (Exploración / Signos):</span>
+              <p className="text-slate-600 whitespace-pre-line">
+                {enc.soap_notes.objective || 'Sin registro'}
+              </p>
+            </div>
 
-                          <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
-                            <span className="font-bold text-slate-700 block">A - Evaluación / Diagnóstico:</span>
-                            <p className="text-slate-600 whitespace-pre-line">
-                              {enc.soap_notes.assessment || 'Sin registro'}
-                            </p>
-                          </div>
+            <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
+              <span className="font-bold text-slate-700 block">A - Evaluación / Diagnóstico:</span>
+              <p className="text-slate-600 whitespace-pre-line">
+                {enc.soap_notes.assessment || 'Sin registro'}
+              </p>
+            </div>
 
-                          <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
-                            <span className="font-bold text-slate-700 block">P - Plan y Tratamiento:</span>
-                            <p className="text-slate-600 whitespace-pre-line">
-                              {enc.soap_notes.plan || 'Sin registro'}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-slate-400 italic">Nota SOAP no disponible para esta consulta.</p>
-                      )}
+            <div className="space-y-1 bg-slate-50 p-3 rounded-xl">
+              <span className="font-bold text-slate-700 block">P - Plan y Tratamiento:</span>
+              <p className="text-slate-600 whitespace-pre-line">
+                {enc.soap_notes.plan || 'Sin registro'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-slate-400 italic">Nota SOAP no disponible para esta consulta.</p>
+        )}
 
-                      {enc.prescriptions && (
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                          <div>
-                            <span className="font-bold text-slate-800">Receta Prescrita: </span>
-                            <span className="text-slate-500 font-mono">#{enc.prescriptions.prescription_code}</span>
-                            <span className="text-slate-500 ml-2">
-                              ({(enc.prescriptions.medications || []).length} medicamentos)
-                            </span>
-                          </div>
+        {enc.prescriptions && (
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+            <div>
+              <span className="font-bold text-slate-800">Receta Prescrita: </span>
+              <span className="text-slate-500 font-mono">#{enc.prescriptions.prescription_code}</span>
+              <span className="text-slate-500 ml-2">
+                ({(enc.prescriptions.medications || []).length} medicamentos)
+              </span>
+            </div>
 
-                          <button
-                            onClick={() => router.push(`/recetas/${enc.prescriptions?.id}`)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors text-[11px]"
-                          >
-                            📄 Ver Receta
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
+            <button
+              onClick={() => router.push(`/recetas/${enc.prescriptions?.id}`)}
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors text-[11px]"
+            >
+              📄 Ver Receta
+            </button>
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+);
             })
           )}
         </div>

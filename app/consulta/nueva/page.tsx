@@ -401,43 +401,44 @@ function NuevaConsultaContent() {
     }
   };
 
+// Estados para manejar las confirmaciones personalizadas sin usar window.confirm
+const [pendingMed, setPendingMed] = useState<any>(null);
+const [showEmptyRecipeModal, setShowEmptyRecipeModal] = useState(false);
+const [showFinalReviewModal, setShowFinalReviewModal] = useState(false);
+const [medicamentosPendientesFinales, setMedicamentosPendientesFinales] = useState<any[]>([]);
+
+
+
 const handleGuardarNota = async () => {
     if (!encounterId || !editableSoap || !doctorId || !selectedPatient) return;
 
     let medicamentosFinales = [...medicamentos];
 
-    // 🛡️ PASO 1: Validar si dejó texto a medias en los inputs de medicamento sin agregar
+    // 🛡️ PASO 1: Validar si dejó texto a medias en los inputs
     if (nuevoMed.medicamento.trim() || nuevoMed.dosis.trim()) {
-      const agregarPendiente = window.confirm(
-        `Tienes información escrita en los campos de "Agregar Medicamento" ("${nuevoMed.medicamento}"), pero no la has añadido a la receta.\n\n¿Deseas agregarla automáticamente antes de continuar?`
-      );
-
-      if (agregarPendiente) {
-        medicamentosFinales.push(nuevoMed);
-        setMedicamentos(medicamentosFinales);
-      } else {
-        return; // Si cancela, se detiene el proceso para que revise
-      }
+      setPendingMed(nuevoMed);
+      return; // Detenemos y abrimos el modal del Paso 1
     }
+
+    continuarValidacionReceta(medicamentosFinales);
+  };
+
+  // Función auxiliar para continuar tras el paso 1
+  const continuarValidacionReceta = (medicamentosFinales: any[]) => {
+    setMedicamentosPendientesFinales(medicamentosFinales);
 
     // 🛡️ PASO 2: Validar si la receta va completamente vacía
     if (medicamentosFinales.length === 0) {
-      const confirmarSinReceta = window.confirm(
-        "Estás a punto de finalizar la consulta sin ningún medicamento en la receta. ¿Deseas continuar únicamente con la Nota SOAP?"
-      );
-      if (!confirmarSinReceta) {
-        return; 
-      }
+      setShowEmptyRecipeModal(true);
+      return;
     }
 
-    // 🛡️ PASO 3 (CIERRE): Confirmación obligatoria de revisión y validación de los datos generados por la IA
-    const confirmarRevision = window.confirm(
-      "Por favor, asegúrate de haber revisado y actualizado la Nota SOAP y la receta generada por la IA en caso de ser necesario.\n\n¿Los datos son correctos y deseas finalizar y guardar la consulta?"
-    );
-    if (!confirmarRevision) {
-      return; // Si el médico cancela, se queda en la pantalla para hacer los ajustes necesarios
-    }
+    // 🛡️ PASO 3: Confirmación obligatoria de revisión de IA
+    setShowFinalReviewModal(true);
+  };
 
+  // Función final que ejecuta el guardado en Supabase
+  const ejecutarGuardadoDefinitivo = async (medicamentosFinales: any[]) => {
     setSaving(true);
     setErrorMessage(null);
 
@@ -917,7 +918,110 @@ const handleGuardarNota = async () => {
           </div>
         </div>
       )}
-    </div>
+
+
+
+      {/* MODAL DE NUEVO PACIENTE */}
+      {isNewPatientModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
+          {/* ... contenido del modal de paciente ... */}
+        </div>
+      )}
+
+      {/* 🛡️ PEGA LOS TRES MODALES DE CONFIRMACIÓN AQUÍ */}
+      {pendingMed && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900">MedikAI — Medicamento sin añadir</h3>
+            <p className="text-xs text-slate-600">
+              Tienes información escrita en los campos de "Agregar Medicamento" (<span className="font-semibold">{pendingMed.medicamento}</span>), pero no la has añadido a la receta. ¿Deseas agregarla automáticamente antes de continuar?
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingMed(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
+              >
+                Cancelar y revisar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const actualizados = [...medicamentos, pendingMed];
+                  setMedicamentos(actualizados);
+                  setPendingMed(null);
+                  continuarValidacionReceta(actualizados);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Sí, agregar y continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEmptyRecipeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900">MedikAI — Sin medicamentos</h3>
+            <p className="text-xs text-slate-600">
+              Estás a punto de finalizar la consulta sin ningún medicamento en la receta. ¿Deseas continuar únicamente con la Nota SOAP?
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEmptyRecipeModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
+              >
+                Regresar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmptyRecipeModal(false);
+                  setShowFinalReviewModal(true);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Continuar sin receta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFinalReviewModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900">MedikAI — Validación Final</h3>
+            <p className="text-xs text-slate-600">
+              Por favor, asegúrate de haber revisado y actualizado la Nota SOAP y la receta generada por la IA en caso de ser necesario. ¿Los datos son correctos y deseas finalizar y guardar la consulta?
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowFinalReviewModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
+              >
+                Hacer ajustes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFinalReviewModal(false);
+                  ejecutarGuardadoDefinitivo(medicamentosPendientesFinales);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Sí, Guardar Consulta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div> // <--- ESTE ES EL ULTIMO DIV DE LA PAGINA (min-h-screen)
   );
 }
 

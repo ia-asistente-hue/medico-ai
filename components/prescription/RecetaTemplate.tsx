@@ -91,16 +91,16 @@ export default function RecetaTemplate({
           <div className="flex items-center gap-4">
             {doctor?.clinic_logo_url ? (
               <div className="h-24 w-auto flex items-center justify-center">
-                <img src={doctor.clinic_logo_url} alt="Logo Consultorio" className="max-h-24 max-w-[200px] object-contain" />
+                <img src={doctor.clinic_logo_url} alt="Logo Consultorio" className="max-h-36 max-w-[300px] object-contain" />
               </div>
             ) : null}
             <div>
               {doctor?.clinic_name && (
                 <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">{doctor.clinic_name}</h2>
               )}
-              <span className="text-lg font-extrabold tracking-tight text-[#1A202C]">
+              {/* <span className="text-lg font-extrabold tracking-tight text-[#1A202C]">
                 Medik<span className="text-[#0052FF]">AI</span>
-              </span>
+              </span> */}
             </div>
           </div>
           <div>
