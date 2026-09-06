@@ -449,6 +449,7 @@ const handleGuardarNota = async () => {
 
   // Función final que ejecuta el guardado en Supabase
   const ejecutarGuardadoDefinitivo = async (medicamentosFinales: any[]) => {
+    if (!editableSoap || !encounterId || !doctorId || !selectedPatient) return;
     setSaving(true);
     setErrorMessage(null);
 
