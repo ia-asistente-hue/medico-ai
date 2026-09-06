@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 interface Medicamento {
   medicamento: string;
   dosis: string;
-  via: string;
+  via?: string;
   frecuencia: string;
   duracion: string;
   indicaciones: string;
