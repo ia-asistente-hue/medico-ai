@@ -41,6 +41,7 @@ interface Medicamento {
   frecuencia: string;
   duracion: string;
   indicaciones: string;
+  via?: string;
 }
 
 interface SoapFormState {
@@ -111,6 +112,7 @@ function NuevaConsultaContent() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [verificandoDoctor, setVerificandoDoctor] = useState(true); // Estado de carga inicial
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -124,6 +126,7 @@ function NuevaConsultaContent() {
     frecuencia: '',
     duracion: '',
     indicaciones: '',
+    via: '',
   });
 
   // Filtrar pacientes en tiempo real por nombre completo, CURP o Folio (chart_number)
@@ -146,30 +149,37 @@ function NuevaConsultaContent() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // Validación y carga inicial del doctor
   useEffect(() => {
     async function initData() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-      const { data: doctor } = await supabase
-        .from('doctors')
-        .select('id')
-        .eq('profile_id', user.id)
-        .single();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
 
-      // 2. 🛡️ Si no existe, lo enviamos al onboarding para que complete su perfil médico
-      if (!doctor) {
-        router.push('/onboarding');
-        return;
-      }  
-      else {
+        const { data: doctor, error } = await supabase
+          .from('doctors')
+          .select('id')
+          .eq('profile_id', user.id)
+          .maybeSingle();
+
+        if (error || !doctor) {
+          router.push('/onboarding');
+          return;
+        }
+
         setDoctorId(doctor.id);
         await cargarPacientes(doctor.id, patientIdFromUrl);
+      } catch (err) {
+        console.error('Error al inicializar datos:', err);
+        router.push('/onboarding');
+      } finally {
+        setVerificandoDoctor(false);
       }
     }
     initData();
@@ -243,8 +253,7 @@ function NuevaConsultaContent() {
       router.push('/onboarding');
       return;
     }
-    if (!newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) 
-      return;
+    if (!newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) return;
 
     setCreatingPatient(true);
     setErrorMessage(null);
@@ -399,6 +408,7 @@ function NuevaConsultaContent() {
         frecuencia: med.frecuencia || med.frequency || '',
         duracion: med.duracion || med.duration || '',
         indicaciones: med.indicaciones || med.instructions || '',
+        via: med.via || '',
       }));
 
       setMedicamentos(medicamentosPlanos);
@@ -411,45 +421,38 @@ function NuevaConsultaContent() {
     }
   };
 
-// Estados para manejar las confirmaciones personalizadas sin usar window.confirm
-const [pendingMed, setPendingMed] = useState<any>(null);
-const [showEmptyRecipeModal, setShowEmptyRecipeModal] = useState(false);
-const [showFinalReviewModal, setShowFinalReviewModal] = useState(false);
-const [medicamentosPendientesFinales, setMedicamentosPendientesFinales] = useState<any[]>([]);
+  const [pendingMed, setPendingMed] = useState<any>(null);
+  const [showEmptyRecipeModal, setShowEmptyRecipeModal] = useState(false);
+  const [showFinalReviewModal, setShowFinalReviewModal] = useState(false);
+  const [medicamentosPendientesFinales, setMedicamentosPendientesFinales] = useState<any[]>([]);
 
-
-
-const handleGuardarNota = async () => {
+  const handleGuardarNota = async () => {
     if (!encounterId || !editableSoap || !doctorId || !selectedPatient) return;
 
     let medicamentosFinales = [...medicamentos];
 
-    // 🛡️ PASO 1: Validar si dejó texto a medias en los inputs
     if (nuevoMed.medicamento.trim() || nuevoMed.dosis.trim()) {
       setPendingMed(nuevoMed);
-      return; // Detenemos y abrimos el modal del Paso 1
+      return;
     }
 
     continuarValidacionReceta(medicamentosFinales);
   };
 
-  // Función auxiliar para continuar tras el paso 1
   const continuarValidacionReceta = (medicamentosFinales: any[]) => {
     setMedicamentosPendientesFinales(medicamentosFinales);
 
-    // 🛡️ PASO 2: Validar si la receta va completamente vacía
     if (medicamentosFinales.length === 0) {
       setShowEmptyRecipeModal(true);
       return;
     }
 
-    // 🛡️ PASO 3: Confirmación obligatoria de revisión de IA
     setShowFinalReviewModal(true);
   };
 
-  // Función final que ejecuta el guardado en Supabase
   const ejecutarGuardadoDefinitivo = async (medicamentosFinales: any[]) => {
     if (!editableSoap || !encounterId || !doctorId || !selectedPatient) return;
+
     setSaving(true);
     setErrorMessage(null);
 
@@ -493,13 +496,22 @@ const handleGuardarNota = async () => {
     }
   };
 
-
-
   const currentStep = !encounterId ? 1 : !editableSoap ? 2 : 3;
+
+  // Si está verificando el perfil del doctor, mostramos una pantalla de carga limpia
+  if (verificandoDoctor) {
+    return (
+      <div className="min-h-screen bg-[#F1F5F9] flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3 bg-white p-8 rounded-2xl shadow-sm border border-slate-200/80 max-w-sm w-full">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#0052FF] border-t-transparent" />
+          <p className="text-xs font-semibold text-slate-600">Verificando perfil médico...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
-      {/* HEADER MEJORADO CON LOGO ENLAZADO */}
       <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
@@ -531,7 +543,6 @@ const handleGuardarNota = async () => {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
-        {/* BARRA DE PROGRESO / STEPPER MODERNO */}
         <div className="rounded-2xl bg-white p-5 shadow-sm border border-slate-200/80">
           <div className="flex items-center justify-between max-w-2xl mx-auto relative">
             <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100 z-0"></div>
@@ -588,7 +599,6 @@ const handleGuardarNota = async () => {
           </div>
         )}
 
-        {/* PASO 1 - BÚSQUEDA Y SELECCIÓN */}
         {!encounterId && (
           <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -607,7 +617,6 @@ const handleGuardarNota = async () => {
 
             <div className="space-y-4">
               {selectedPatient ? (
-                /* TARJETA DE PACIENTE SELECCIONADO OPTIMIZADA (UX MÉDICA) */
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-xs space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -667,7 +676,6 @@ const handleGuardarNota = async () => {
                   </button>
                 </div>
               ) : (
-                /* BUSCADOR INTERACTIVO (CUANDO NO HAY PACIENTE SELECCIONADO) */
                 <div className="space-y-4">
                   <div className="relative" ref={patientDropdownRef}>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
@@ -693,7 +701,6 @@ const handleGuardarNota = async () => {
                       />
                     </div>
 
-                    {/* Dropdown flotante de resultados */}
                     {isPatientDropdownOpen && (
                       <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl bg-white border border-slate-100 shadow-xl shadow-slate-200/60 p-1">
                         {filteredPatients.length > 0 ? (
@@ -743,7 +750,6 @@ const handleGuardarNota = async () => {
           </div>
         )}
 
-        {/* PASO 2 */}
         {encounterId && !editableSoap && (
           <AudioRecorder
             isRecording={isRecording}
@@ -760,7 +766,6 @@ const handleGuardarNota = async () => {
           />
         )}
 
-        {/* PASO 3 */}
         {editableSoap && (
           <div className="space-y-6">
             <SoapEditor
@@ -775,7 +780,7 @@ const handleGuardarNota = async () => {
               onAgregarMedicamento={() => {
                 if (!nuevoMed.medicamento.trim() || !nuevoMed.dosis.trim()) return;
                 setMedicamentos([...medicamentos, nuevoMed]);
-                setNuevoMed({ medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '' });
+                setNuevoMed({ medicamento: '', dosis: '', frecuencia: '', duracion: '', indicaciones: '', via: '' });
               }}
               onEliminarMedicamento={(idx) => setMedicamentos(medicamentos.filter((_, i) => i !== idx))}
               onUpdateInstrucciones={setInstruccionesReceta}
@@ -786,7 +791,6 @@ const handleGuardarNota = async () => {
         )}
       </main>
 
-      {/* MODAL DE NUEVO PACIENTE */}
       {isNewPatientModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 my-8 animate-in fade-in zoom-in-95 duration-150">
@@ -930,16 +934,6 @@ const handleGuardarNota = async () => {
         </div>
       )}
 
-
-
-      {/* MODAL DE NUEVO PACIENTE */}
-      {isNewPatientModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
-          {/* ... contenido del modal de paciente ... */}
-        </div>
-      )}
-
-      {/* 🛡️ PEGA LOS TRES MODALES DE CONFIRMACIÓN AQUÍ */}
       {pendingMed && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -1031,8 +1025,7 @@ const handleGuardarNota = async () => {
           </div>
         </div>
       )}
-
-    </div> // <--- ESTE ES EL ULTIMO DIV DE LA PAGINA (min-h-screen)
+    </div>
   );
 }
 
