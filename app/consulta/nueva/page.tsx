@@ -162,7 +162,12 @@ function NuevaConsultaContent() {
         .eq('profile_id', user.id)
         .single();
 
-      if (doctor) {
+      // 2. 🛡️ Si no existe, lo enviamos al onboarding para que complete su perfil médico
+      if (!doctor) {
+        router.push('/onboarding');
+        return;
+      }  
+      else {
         setDoctorId(doctor.id);
         await cargarPacientes(doctor.id, patientIdFromUrl);
       }
@@ -234,7 +239,12 @@ function NuevaConsultaContent() {
 
   const handleCrearPaciente = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!doctorId || !newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) return;
+    if (!doctorId) {
+      router.push('/onboarding');
+      return;
+    }
+    if (!newPatientData.first_name.trim() || !newPatientData.last_name.trim() || !newPatientData.date_of_birth) 
+      return;
 
     setCreatingPatient(true);
     setErrorMessage(null);
