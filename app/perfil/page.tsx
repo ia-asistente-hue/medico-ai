@@ -251,29 +251,34 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
       {mode === 'profile' && (
-        <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/85 backdrop-blur-md px-4 sm:px-6 py-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <span className="text-xl font-bold tracking-tight text-[#1A202C]">
+              <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
+              <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
+            </div>
+            <span className="font-bold text-slate-800 tracking-tight text-sm sm:text-base">
               Medik<span className="text-[#0052FF]">AI</span>
             </span>
-            <div className="flex items-center gap-3">
-              <Link
+          </Link>
+          <div className="flex items-center gap-2.5">
+                          <Link
                 href="/consulta/nueva"
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-[#0052FF] transition-all"
               >
                 Nueva Consulta
               </Link>
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  router.push('/login');
-                }}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push('/login');
+              }}
+              className="rounded-xl border border-slate-200/80 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
+            >
+              Cerrar Sesión
+            </button>
           </div>
+        </div>
         </header>
       )}
 
@@ -302,12 +307,13 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
-          {/* TARJETA 1: DATOS PERSONALES */}
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
             <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Información Personal</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Nombre(s)</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase">
+                Nombre(s) <span className="text-rose-500">*</span>
+              </label>
                 <input
                   type="text"
                   name="first_name"
@@ -318,7 +324,8 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Apellido(s)</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase">Apellido(s)<span className="text-rose-500">*</span>
+              </label>
                 <input
                   type="text"
                   name="last_name"
@@ -346,7 +353,8 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
             <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Credenciales y Especialidad</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Cédula Profesional</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase">Cédula Profesional<span className="text-rose-500">*</span>
+              </label>
                 <input
                   type="text"
                   name="medical_license"
