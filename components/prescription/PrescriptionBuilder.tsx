@@ -43,6 +43,7 @@ export default function PrescriptionBuilder({
 }: PrescriptionBuilderProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [formState, setFormState] = useState<Medicamento>(emptyMed);
+  const [showIncompleteMedModal, setShowIncompleteMedModal] = useState(false);
 
   const handleInputChange = (field: keyof Medicamento, val: string) => {
     setFormState((prev) => ({ ...prev, [field]: val }));
@@ -61,7 +62,10 @@ export default function PrescriptionBuilder({
   };
 
   const handleSave = () => {
-    if (!formState.medicamento.trim() || !formState.dosis.trim()) return;
+    if (!formState.medicamento.trim() || !formState.dosis.trim()) {
+      setShowIncompleteMedModal(true);
+      return;
+    }
 
     if (editingIndex !== null) {
       medicamentos[editingIndex] = { ...formState };
@@ -172,7 +176,7 @@ export default function PrescriptionBuilder({
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="space-y-1 sm:col-span-2">
-            <label className="block text-[11px] font-semibold text-slate-600">Medicamento (Nombre y Presentación)</label>
+            <label className="block text-[11px] font-semibold text-slate-600">Medicamento (Nombre y Presentación)<span className="text-rose-500">*</span></label>
             <input
               type="text"
               placeholder="Ej. Omeprazol 20 mg (Cápsulas)"
@@ -183,7 +187,7 @@ export default function PrescriptionBuilder({
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600">Dosis</label>
+            <label className="block text-[11px] font-semibold text-slate-600">Dosis<span className="text-rose-500">*</span></label>
             <input
               type="text"
               placeholder="Ej. 1 cápsula..."
@@ -281,6 +285,27 @@ export default function PrescriptionBuilder({
           {saving ? 'Guardando...' : 'Finalizar Consulta y Guardar Nota'}
         </button>
       </div>
+
+      {/* MODAL DE ADVERTENCIA: FALTAN DATOS OBLIGATORIOS (AHORA BIEN UBICADO DENTRO DEL RETURN) */}
+      {showIncompleteMedModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-base font-bold text-slate-900">MedikAI — Faltan datos obligatorios</h3>
+            <p className="text-xs text-slate-600">
+              Para poder añadir el medicamento a la receta, es necesario que rellenes tanto el campo de <span className="font-semibold">Medicamento</span> como el de <span className="font-semibold">Dosis</span>.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowIncompleteMedModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors cursor-pointer"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

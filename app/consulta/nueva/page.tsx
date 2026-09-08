@@ -79,10 +79,11 @@ function NuevaConsultaContent() {
 
   const patientIdFromUrl = searchParams.get('patient_id');
   const autoStart = searchParams.get('auto_start') === 'true';
-
+  const [medError, setMedError] = useState<string | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   
+  const [showIncompleteMedModal, setShowIncompleteMedModal] = useState(false);
   // Estados para el buscador interactivo de pacientes
   const [patientQuery, setPatientQuery] = useState('');
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
@@ -800,7 +801,7 @@ function NuevaConsultaContent() {
             <form onSubmit={handleCrearPaciente} className="space-y-3 text-left">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre(s) *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre(s) <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     required
@@ -811,7 +812,7 @@ function NuevaConsultaContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Apellido(s) *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Apellido(s) <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     required
@@ -825,7 +826,7 @@ function NuevaConsultaContent() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">F. Nacimiento *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">F. Nacimiento <span className="text-rose-500">*</span></label>
                   <input
                     type="date"
                     required

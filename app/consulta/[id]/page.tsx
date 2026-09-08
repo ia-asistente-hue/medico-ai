@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getFullEncounterDetailsAction } from '@/app/actions/patients';
 import { getDecryptedPrescriptionAction } from '@/app/actions/prescriptions'; // 🔓 Importamos tu Server Action segura
 import RecetaTemplate from '@/components/prescription/RecetaTemplate';
+import { createClient } from '@/lib/supabase';
 
 interface Medicamento {
   medicamento?: string;
@@ -50,7 +51,7 @@ interface EncounterDetail {
 export default function DetalleConsultaPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const encounterId = resolvedParams.id;
-
+  const supabase = createClient();
   const [encounter, setEncounter] = useState<EncounterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -178,19 +179,36 @@ useEffect(() => {
         }
       `}</style>
       
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur-md px-6 py-4 print:hidden">
+      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link
-            href="/consulta/nueva"
-            className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-[#0052FF] transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Nueva Consulta</span>
+          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
+              <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
+            </div>
+            <span className="font-bold text-slate-800 tracking-tight text-sm sm:text-base">
+              Medik<span className="text-[#0052FF]">AI</span>
+            </span>
           </Link>
-
-          <button
+          <div className="flex items-center gap-2.5">
+            <Link
+                href="/consulta/nueva"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-[#0052FF] transition-all"
+              >
+                Nueva Consulta
+              </Link>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+               }}
+              className="rounded-xl border border-slate-200/80 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none space-y-6">
+       <button
             onClick={() => window.print()}
             className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 active:scale-[0.98] transition-all"
           >
@@ -199,11 +217,6 @@ useEffect(() => {
             </svg>
             <span>Imprimir Receta Médica (PDF)</span>
           </button>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none space-y-6">
-       
           {/* 💊 RECETA MÉDICA REUTILIZANDO EL COMPONENTE (SIEMPRE VISIBLE) */}
           <RecetaTemplate
             prescriptionCode={encounter.prescription?.prescription_code || 'S/F'}
