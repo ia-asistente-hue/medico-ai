@@ -1,5 +1,36 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
+// Definimos la interfaz con los tipos para TypeScript
+interface PrescriptionPdfParams {
+  templateUrl: string;
+  prescriptionCode: string;
+  createdAt: string;
+  patient: {
+    first_name?: string;
+    last_name?: string;
+    date_of_birth?: string;
+    gender?: string;
+  };
+  medications: Array<{
+    medicamento?: string;
+    dosis?: string;
+    via?: string;
+    frecuencia?: string;
+    duracion?: string;
+    indicaciones?: string;
+  }>;
+  instructions?: string | null;
+  doctor: {
+    medical_license?: string;
+    specialty?: string;
+    digital_signature_url?: string | null;
+    profile?: {
+      first_name?: string;
+      last_name?: string;
+    } | null;
+  };
+}
+
 // Función para generar el Blob URL del PDF fusionado
 export async function getMergedPdfBlobUrl({
   templateUrl,
@@ -9,7 +40,7 @@ export async function getMergedPdfBlobUrl({
   medications,
   instructions,
   doctor,
-}) {
+}: PrescriptionPdfParams): Promise<string> {
   const response = await fetch(templateUrl);
   const pdfBytes = await response.arrayBuffer();
 
@@ -42,7 +73,7 @@ export async function getMergedPdfBlobUrl({
   currentY -= 15;
 
   (medications || []).forEach((med, idx) => {
-    const medText = `${idx + 1}. ${med.medicamento} — ${med.dosis} (${med.via || 'Oral'}, c/${med.frecuencia}, por ${med.duracion})`;
+    const medText = `${idx + 1}. ${med.medicamento || ''} — ${med.dosis || ''} (${med.via || 'Oral'}, c/${med.frecuencia || ''}, por ${med.duracion || ''})`;
     firstPage.drawText(medText, { x: 50, y: currentY, size: 9, font: font, color: textColor });
     currentY -= 14;
     if (med.indicaciones) {
@@ -61,7 +92,7 @@ export async function getMergedPdfBlobUrl({
 
   // FIRMA DEL DOCTOR
   const signatureY = 100;
-  const doctorName = doctor?.profile ? `Dr(a). ${doctor.profile.first_name} ${doctor.profile.last_name}` : 'Dr(a). Tratante';
+  const doctorName = doctor?.profile ? `Dr(a). ${doctor.profile.first_name || ''} ${doctor.profile.last_name || ''}` : 'Dr(a). Tratante';
   
   firstPage.drawText(doctorName, { x: width / 2 - 80, y: signatureY + 25, size: 10, font: fontBold, color: textColor });
   firstPage.drawText(`Cédula Prof: ${doctor?.medical_license || 'S/N'} | ${doctor?.specialty || 'General'}`, { x: width / 2 - 100, y: signatureY + 12, size: 8, font: font, color: rgb(0.4, 0.4, 0.4) });
@@ -86,7 +117,7 @@ export async function getMergedPdfBlobUrl({
   return URL.createObjectURL(blob);
 }
 
-export async function generateAndPrintPrescriptionPdf(params) {
+export async function generateAndPrintPrescriptionPdf(params: PrescriptionPdfParams) {
   try {
     const blobUrl = await getMergedPdfBlobUrl(params);
     window.open(blobUrl, '_blank');
