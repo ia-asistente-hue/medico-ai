@@ -1,47 +1,16 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
-// Definimos la interfaz con los tipos para TypeScript
-interface PrescriptionPdfParams {
-  templateUrl: string;
-  prescriptionCode: string;
-  createdAt: string;
-  patient: {
-    first_name?: string;
-    last_name?: string;
-    date_of_birth?: string;
-    gender?: string;
-  } | null | undefined;
-  };
-  medications: Array<{
-    medicamento?: string;
-    dosis?: string;
-    via?: string;
-    frecuencia?: string;
-    duracion?: string;
-    indicaciones?: string;
-  }>;
-  instructions?: string | null;
-  doctor: {
-    medical_license?: string;
-    specialty?: string;
-    digital_signature_url?: string | null;
-    profile?: {
-      first_name?: string;
-      last_name?: string;
-    } | null;
-  };
-}
+export async function getMergedPdfBlobUrl(params: any): Promise<string> {
+  const {
+    templateUrl,
+    prescriptionCode,
+    createdAt,
+    patient,
+    medications,
+    instructions,
+    doctor,
+  } = params;
 
-// Función para generar el Blob URL del PDF fusionado
-export async function getMergedPdfBlobUrl({
-  templateUrl,
-  prescriptionCode,
-  createdAt,
-  patient,
-  medications,
-  instructions,
-  doctor,
-}: PrescriptionPdfParams): Promise<string> {
   const response = await fetch(templateUrl);
   const pdfBytes = await response.arrayBuffer();
 
@@ -65,7 +34,7 @@ export async function getMergedPdfBlobUrl({
   // FECHA Y FOLIO
   firstPage.drawText(`FECHA: ${new Date(createdAt).toLocaleDateString('es-MX')}`, { x: width - 180, y: currentY, size: 9, font: font, color: textColor });
   currentY -= 12;
-  firstPage.drawText(`FOLIO: ${prescriptionCode}`, { x: width - 180, y: currentY, size: 8, font: font, color: rgb(0.4, 0.4, 0.4) });
+  firstPage.drawText(`FOLIO: ${prescriptionCode || 'S/F'}`, { x: width - 180, y: currentY, size: 8, font: font, color: rgb(0.4, 0.4, 0.4) });
 
   currentY -= 30;
 
@@ -73,7 +42,7 @@ export async function getMergedPdfBlobUrl({
   firstPage.drawText('RX / MEDICAMENTOS PRESCRITOS', { x: 50, y: currentY, size: 9, font: fontBold, color: textColor });
   currentY -= 15;
 
-  (medications || []).forEach((med, idx) => {
+  (medications || []).forEach((med: any, idx: number) => {
     const medText = `${idx + 1}. ${med.medicamento || ''} — ${med.dosis || ''} (${med.via || 'Oral'}, c/${med.frecuencia || ''}, por ${med.duracion || ''})`;
     firstPage.drawText(medText, { x: 50, y: currentY, size: 9, font: font, color: textColor });
     currentY -= 14;
@@ -118,7 +87,10 @@ export async function getMergedPdfBlobUrl({
   return URL.createObjectURL(blob);
 }
 
-export async function generateAndPrintPrescriptionPdf(params: PrescriptionPdfParams) {
+export async function generateAndPrintPrescriptionPdf(params: any) {
+  // Aseguramos que solo corra en el navegador
+  if (typeof window === 'undefined') return;
+
   try {
     const blobUrl = await getMergedPdfBlobUrl(params);
     window.open(blobUrl, '_blank');
