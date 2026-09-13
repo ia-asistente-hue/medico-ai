@@ -1,6 +1,7 @@
 // components/prescription/RecetaTemplate.tsx
 import React from 'react';
 
+
 interface RecetaTemplateProps {
   prescriptionCode: string;
   createdAt: string;
@@ -25,6 +26,7 @@ interface RecetaTemplateProps {
     specialty: string;
     digital_signature_url: string | null;
     clinic_logo_url: string | null;
+    custom_pdf_template_url: string | null;
     phone: string | null;
     clinic_name?: string | null;
     street_address: string | null;
@@ -82,6 +84,89 @@ export default function RecetaTemplate({
   const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : null;
   const patientAge = calculateAge(patient?.date_of_birth);
 
+  // 🛡️ CASO A: SI EL DOCTOR TIENE UN PDF PERSONALIZADO
+  if (doctor?.custom_pdf_template_url) {
+    const customPdfUrl = doctor.custom_pdf_template_url;
+
+    return (
+      <div className="space-y-6">
+        <div className="relative w-full max-w-[850px] min-h-[1100px] mx-auto bg-white shadow-2xl border border-slate-200 print:shadow-none print:border-none print:w-full overflow-hidden">
+          
+          {/* 1. CAPA DE FONDO: El PDF del doctor */}
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-95 print:hidden">
+            <iframe 
+              src={`${customPdfUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`} 
+              className="w-full h-full border-0 select-none"
+              title="Membrete PDF"
+            />
+          </div>
+
+         {/* 2. CAPA DE CONTENIDO */}
+          <div className="relative z-10 p-12 sm:p-16 pt-[380px] pb-32 space-y-6 bg-transparent">
+            
+            {/* DATOS DEL PACIENTE Y FECHA */}
+             <div className="relative z-10 p-12 sm:p-16 pt-[380px] pb-32 space-y-6 bg-transparent">
+              <div>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold"></p>
+                <p className="text-sm font-bold text-slate-900 uppercase"></p>
+                <p className="text-slate-600">
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-slate-400 uppercase font-semibold"></p>
+                <p className="font-semibold text-slate-800"></p>
+                <p className="text-[11px] font-mono text-slate-500"></p>
+              </div>
+            </div>
+             <div className="flex justify-between items-start border-b border-slate-300 pb-4 text-xs p-3">
+  <div>
+    <p className="text-[10px] text-slate-400 uppercase font-semibold">Paciente</p>
+    <p className="text-sm font-bold text-slate-900 uppercase">{patient?.first_name} {patient?.last_name}</p>
+    <p className="text-slate-600">
+      Edad: {patientAge !== null ? `${patientAge} años` : 'N/R'} | Género: {formatGender(patient?.gender)}
+    </p>
+  </div>
+  <div className="text-right">
+    <p className="text-[10px] text-slate-400 uppercase font-semibold">Folio / Fecha</p>
+    <p className="font-semibold text-slate-800">{new Date(createdAt).toLocaleDateString('es-MX')}</p>
+    <p className="text-[11px] font-mono text-slate-500">Folio: {prescriptionCode}</p>
+  </div>
+</div>
+
+           {/* TABLA O LISTADO DE MEDICAMENTOS */}
+<div className="space-y-4 pt-2">
+  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 px-2 py-1 inline-block">Rx / Medicamentos Prescritos</h3>
+  <div className="space-y-3">
+    {medications.map((med, idx) => (
+      <div key={idx} className="p-3 text-xs space-y-1">
+        <p className="font-bold text-slate-900">
+          {idx + 1}. {med.medicamento} <span className="font-normal text-slate-700">— {med.dosis}</span>
+        </p>
+        <p className="text-slate-600">
+          <span className="font-semibold">Vía:</span> {med.via || 'Oral'} | <span className="font-semibold">Frecuencia:</span> {med.frecuencia} | <span className="font-semibold">Duración:</span> {med.duracion}
+        </p>
+        {med.indicaciones && (
+          <p className="text-slate-500 italic">Indicaciones: {med.indicaciones}</p>
+        )}
+      </div>
+    ))}
+  </div>
+</div>
+
+           {/* INSTRUCCIONES ADICIONALES (Dentro del flujo natural) */}
+{instructions && (
+  <div className="text-xs text-slate-700 p-4">
+    <strong className="text-slate-900 block mb-1">Instrucciones Adicionales:</strong>
+    <p>{instructions}</p>
+  </div>
+)}
+
+          </div>
+
+        </div>
+        </div>
+    );
+  }
   return (
     <div className="rounded-2xl bg-white p-6 sm:p-10 shadow-xl shadow-slate-200/50 border border-slate-200/80 space-y-8 print:shadow-none print:border-none print:p-0 print:space-y-6">
       

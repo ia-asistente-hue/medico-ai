@@ -6,6 +6,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { fetchPrescriptionAction } from '@/app/actions/patients';
 import { decryptText } from '@/utils/encryption'; // 🟢 Importamos la función de descifrado
 import RecetaTemplate from '@/components/prescription/RecetaTemplate'; // 🟢 Importamos la plantilla
+import { generateAndPrintPrescriptionPdf } from '@/app/utils/generatePrescriptionPdf';
+
+
 
 interface Medicamento {
   medicamento: string;
@@ -122,6 +125,7 @@ export default function RecetaDetailPage() {
           specialty: rawDoctor.specialty || '',
           digital_signature_url: rawDoctor.digital_signature_url || null,
           clinic_logo_url: rawDoctor.clinic_logo_url || null,
+          custom_pdf_template_url: rawDoctor.custom_pdf_template_url || null,
           phone: rawDoctor.phone || null,
           clinic_name: rawDoctor.clinic_name || null,
           street_address: rawDoctor.street_address || null,
@@ -188,11 +192,28 @@ export default function RecetaDetailPage() {
             <span>← Volver al Expediente</span>
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={() => {
+              if (prescription.doctor?.custom_pdf_template_url) {
+                // Si el doctor tiene un PDF personalizado, llamamos a pdf-lib para estampar los datos
+                generateAndPrintPrescriptionPdf({
+                  templateUrl: prescription.doctor.custom_pdf_template_url,
+                  prescriptionCode: prescription.prescription_code,
+                  createdAt: prescription.created_at,
+                  patient: prescription.patient,
+                  medications: prescription.medications,
+                  instructions: prescription.instructions,
+                  doctor: prescription.doctor,
+                });
+              } else {
+                // Si no tiene plantilla, usa la impresión clásica
+                window.print();
+              }
+            }}
             className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 transition-all"
           >
             <span>Imprimir Receta Médica (PDF)</span>
           </button>
+          
         </div>
       </header>
 

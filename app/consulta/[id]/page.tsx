@@ -7,6 +7,8 @@ import { getFullEncounterDetailsAction } from '@/app/actions/patients';
 import { getDecryptedPrescriptionAction } from '@/app/actions/prescriptions'; // 🔓 Importamos tu Server Action segura
 import RecetaTemplate from '@/components/prescription/RecetaTemplate';
 import { createClient } from '@/lib/supabase';
+import { generateAndPrintPrescriptionPdf } from '@/app/utils/generatePrescriptionPdf'; // Ajusta la ruta si es necesario
+
 
 interface Medicamento {
   medicamento?: string;
@@ -99,6 +101,7 @@ useEffect(() => {
           postal_code: data.doctor_postal_code || '',
           digital_signature_url: data.doctor_digital_signature_url || null,
           clinic_logo_url: data.doctor_clinic_logo_url || null,
+          custom_pdf_template_url: data.doctor_custom_pdf_template_url || null,
           profile: data.doctor_first_name ? {
             first_name: data.doctor_first_name,
             last_name: data.doctor_last_name,
@@ -179,7 +182,7 @@ useEffect(() => {
         }
       `}</style>
       
-      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
+      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs print:hidden">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
@@ -208,15 +211,26 @@ useEffect(() => {
         </div>
       </header>
       <main className="max-w-4xl mx-auto p-4 sm:p-6 print:p-0 print:max-w-none space-y-6">
-       <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 active:scale-[0.98] transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            <span>Imprimir Receta Médica (PDF)</span>
-          </button>
+          <button
+  onClick={() => {
+    if (encounter?.doctor?.custom_pdf_template_url && encounter?.prescription) {
+      generateAndPrintPrescriptionPdf({
+        templateUrl: encounter.doctor.custom_pdf_template_url,
+        prescriptionCode: encounter.prescription.prescription_code,
+        createdAt: encounter.created_at,
+        patient: encounter.patient,
+        medications: encounter.prescription.medications,
+        instructions: encounter.prescription.instructions,
+        doctor: encounter.doctor,
+      });
+    } else {
+      window.print();
+    }
+  }}
+  className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-md hover:bg-slate-800 transition-all cursor-pointer print:hidden"
+>
+  <span>Imprimir Receta Médica (PDF)</span>
+</button>
           {/* 💊 RECETA MÉDICA REUTILIZANDO EL COMPONENTE (SIEMPRE VISIBLE) */}
           <RecetaTemplate
             prescriptionCode={encounter.prescription?.prescription_code || 'S/F'}
