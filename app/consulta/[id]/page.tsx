@@ -7,7 +7,7 @@ import { getFullEncounterDetailsAction } from '@/app/actions/patients';
 import { getDecryptedPrescriptionAction } from '@/app/actions/prescriptions'; // 🔓 Importamos tu Server Action segura
 import RecetaTemplate from '@/components/prescription/RecetaTemplate';
 import { createClient } from '@/lib/supabase';
-import { generateAndPrintPrescriptionPdf } from '@/app/utils/generatePrescriptionPdf'; // Ajusta la ruta si es necesario
+import { generateAndPrintPrescriptionPdf } from '@/utils/generatePrescriptionPdf'; // Ajusta la ruta si es necesario
 
 
 interface Medicamento {

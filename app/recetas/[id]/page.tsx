@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { fetchPrescriptionAction } from '@/app/actions/patients';
 import { decryptText } from '@/utils/encryption'; // 🟢 Importamos la función de descifrado
 import RecetaTemplate from '@/components/prescription/RecetaTemplate'; // 🟢 Importamos la plantilla
-import { generateAndPrintPrescriptionPdf } from '@/app/utils/generatePrescriptionPdf';
+import { generateAndPrintPrescriptionPdf } from '@/utils/generatePrescriptionPdf';
 
 
 
