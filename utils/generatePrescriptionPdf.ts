@@ -10,6 +10,7 @@ interface PrescriptionPdfParams {
     last_name?: string;
     date_of_birth?: string;
     gender?: string;
+  } | null | undefined;
   };
   medications: Array<{
     medicamento?: string;
