@@ -8,7 +8,7 @@ import { getDecryptedPrescriptionAction } from '@/app/actions/prescriptions'; //
 import RecetaTemplate from '@/components/prescription/RecetaTemplate';
 import { createClient } from '@/lib/supabase';
 import { generateAndPrintPrescriptionPdf } from '@/utils/generatePrescriptionPdf'; // Ajusta la ruta si es necesario
-
+import { useRouter } from 'next/navigation';
 
 interface Medicamento {
   medicamento?: string;
@@ -57,6 +57,7 @@ export default function DetalleConsultaPage({ params }: { params: Promise<{ id: 
   const [encounter, setEncounter] = useState<EncounterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const router = useRouter();
 
 useEffect(() => {
   async function fetchEncounterData() {
@@ -202,7 +203,8 @@ useEffect(() => {
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
-               }}
+                router.push('/login');
+              }}
               className="rounded-xl border border-slate-200/80 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-2xs cursor-pointer"
             >
               Cerrar Sesión
