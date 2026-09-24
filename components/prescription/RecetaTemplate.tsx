@@ -138,7 +138,7 @@ export default function RecetaTemplate({
   <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 px-2 py-0.5 inline-block">Rx / Medicamentos Prescritos</h3>
   <div className="space-y-1">
     {medications.map((med, idx) => (
-  <div key={idx} className="py-1.5 px-2 text-xs space-y-2">
+  <div key={idx} className="py-2 px-2 text-xs space-y-2">
     <p className="text-slate-600">
       <strong className="text-slate-900">{idx + 1}. {med.medicamento}</strong>
       
@@ -157,11 +157,12 @@ export default function RecetaTemplate({
       {med.duracion && (
         <> | <span className="font-semibold">Duración:</span> {med.duracion}</>
       )}
-    </p>
+    
 
     {med.indicaciones && (
-      <> <span className="font-semibold">Indicaciones:</span> {med.indicaciones}</>
+      <> | <span className="font-semibold">    Indicaciones:</span> {med.indicaciones}</>
     )}
+    </p>  
   </div>
 ))}
   </div>
