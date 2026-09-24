@@ -102,10 +102,10 @@ export default function RecetaTemplate({
           </div>
 
          {/* 2. CAPA DE CONTENIDO */}
-          <div className="relative z-10 p-12 sm:p-16 pt-[380px] pb-32 space-y-6 bg-transparent">
+          <div className="relative z-10 p-12 sm:p-16 pt-[360px] pb-32 space-y-6 bg-transparent">
             
             {/* DATOS DEL PACIENTE Y FECHA */}
-             <div className="relative z-10 p-12 sm:p-16 pt-[380px] pb-32 space-y-6 bg-transparent">
+             <div className="relative z-10 p-12 sm:p-16 pt-[380px] pb-32 space-y-5 bg-transparent">
               <div>
                 <p className="text-[10px] text-slate-400 uppercase font-semibold"></p>
                 <p className="text-sm font-bold text-slate-900 uppercase"></p>
@@ -118,7 +118,7 @@ export default function RecetaTemplate({
                 <p className="text-[11px] font-mono text-slate-500"></p>
               </div>
             </div>
-             <div className="flex justify-between items-start border-b border-slate-300 pb-4 text-xs p-3">
+             <div className="flex justify-between items-start border-b border-slate-300 pb-4 text-xs p-2">
   <div>
     <p className="text-[10px] text-slate-400 uppercase font-semibold">Paciente</p>
     <p className="text-sm font-bold text-slate-900 uppercase">{patient?.first_name} {patient?.last_name}</p>
@@ -134,28 +134,42 @@ export default function RecetaTemplate({
 </div>
 
            {/* TABLA O LISTADO DE MEDICAMENTOS */}
-<div className="space-y-4 pt-2">
-  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 px-2 py-1 inline-block">Rx / Medicamentos Prescritos</h3>
-  <div className="space-y-3">
+<div className="space-y-2 pt-2">
+  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900 px-2 py-0.5 inline-block">Rx / Medicamentos Prescritos</h3>
+  <div className="space-y-1">
     {medications.map((med, idx) => (
-      <div key={idx} className="p-3 text-xs space-y-1">
-        <p className="font-bold text-slate-900">
-          {idx + 1}. {med.medicamento} <span className="font-normal text-slate-700">— {med.dosis}</span>
-        </p>
-        <p className="text-slate-600">
-          <span className="font-semibold">Vía:</span> {med.via || 'Oral'} | <span className="font-semibold">Frecuencia:</span> {med.frecuencia} | <span className="font-semibold">Duración:</span> {med.duracion}
-        </p>
-        {med.indicaciones && (
-          <p className="text-slate-500 italic">Indicaciones: {med.indicaciones}</p>
-        )}
-      </div>
-    ))}
+  <div key={idx} className="py-1.5 px-2 text-xs space-y-2">
+    <p className="text-slate-600">
+      <strong className="text-slate-900">{idx + 1}. {med.medicamento}</strong>
+      
+      {med.dosis && (
+        <> | <span className="font-semibold">Dosis:</span> {med.dosis}</>
+      )}
+      
+      {med.via && (
+        <> | <span className="font-semibold">Vía:</span> {med.via}</>
+      )}
+      
+      {med.frecuencia && (
+        <> | <span className="font-semibold">Frecuencia:</span> {med.frecuencia}</>
+      )}
+      
+      {med.duracion && (
+        <> | <span className="font-semibold">Duración:</span> {med.duracion}</>
+      )}
+    </p>
+
+    {med.indicaciones && (
+      <> <span className="font-semibold">Indicaciones:</span> {med.indicaciones}</>
+    )}
+  </div>
+))}
   </div>
 </div>
 
-           {/* INSTRUCCIONES ADICIONALES (Dentro del flujo natural) */}
+{/* INSTRUCCIONES ADICIONALES (Dentro del flujo natural) */}
 {instructions && (
-  <div className="text-xs text-slate-700 p-4">
+  <div className="text-xs text-slate-700 p-1">
     <strong className="text-slate-900 block mb-1">Instrucciones Adicionales:</strong>
     <p>{instructions}</p>
   </div>
