@@ -45,7 +45,7 @@ export async function POST(req: Request) {
         const priceId = subscription.items.data[0].price.id;
 
         const isPro = priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
-        console.log(`User ${userId} subscribed to ${isPro ? 'Pro' : 'Basic'} plan with subscription
+        console.log(`User ${userId} subscribed to ${isPro ? 'Pro' : 'Basic'} plan with subscription ID: ${subscription.id}`);
         await supabase
           .from('profiles')
           .update({
