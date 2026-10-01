@@ -47,6 +47,21 @@ export async function POST(req: Request) {
         const isPro = priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
         console.log(`User ${userId} subscribed to ${isPro ? 'Pro' : 'Basic'} plan with subscription ID: ${subscription.id}`);
         
+        // 1. Verificación previa: Consultar si el usuario existe antes del update
+        const { data: userProfile, error: findError } = await supabase
+          .from('profiles')
+          .select('id, email, subscription_status, plan_tier')
+          .eq('id', userId)
+          .maybeSingle();
+
+        console.log('🔍 Diagnóstico - Búsqueda de perfil:', {
+          userIdBuscado: userId,
+          tipoUserId: typeof userId,
+          longitudUserId: userId?.length,
+          perfilEncontrado: userProfile,
+          errorBusqueda: findError,
+        });
+
         const { data, error, count } = await supabase
           .from('profiles')
           .update({
