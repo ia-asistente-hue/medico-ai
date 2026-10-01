@@ -39,13 +39,13 @@ export async function POST(req: Request) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.client_reference_id || session.metadata?.userId;
-
+      console.log(`✅ Checkout session completed for userId: ${userId}, sessionId: ${session.id}`);
       if (userId && session.subscription) {
         const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
         const priceId = subscription.items.data[0].price.id;
 
         const isPro = priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
-
+        console.log(`User ${userId} subscribed to ${isPro ? 'Pro' : 'Basic'} plan with subscription
         await supabase
           .from('profiles')
           .update({
