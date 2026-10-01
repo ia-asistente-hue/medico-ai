@@ -46,7 +46,8 @@ export async function POST(req: Request) {
 
         const isPro = priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
         console.log(`User ${userId} subscribed to ${isPro ? 'Pro' : 'Basic'} plan with subscription ID: ${subscription.id}`);
-        await supabase
+        
+        const { data, error, count } = await supabase
           .from('profiles')
           .update({
             stripe_customer_id: session.customer as string,
@@ -55,7 +56,9 @@ export async function POST(req: Request) {
             subscription_status: 'active',
             can_customize_prescriptions: isPro,
           })
-          .eq('id', userId);
+          .eq('id', userId)
+          .select();
+          console.log('Resultado update Supabase:', { data, error, count });
       }
       break;
     }
