@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-08-26.dahlia',
 });
 
-export async function POST(req: Request) {
+/*export async function POST(req: Request) {
   
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -112,4 +112,64 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true });
+}*/
+
+
+
+export async function POST(req: Request) {
+  console.log('--- INICIO TEST DIAGNÓSTICO SUPABASE ---');
+
+  // 1. Validar variables de entorno
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  console.log('1. Variables cargadas:', {
+    url,
+    tieneAnonKey: !!anonKey,
+    tieneServiceKey: !!serviceKey,
+  });
+
+  // 2. Probar lectura con cliente administrativo (Service Role)
+  if (serviceKey) {
+    const supabaseAdmin = createClient(url!, serviceKey, {
+      auth: { persistSession: false },
+    });
+
+    const { data: adminProfiles, error: adminError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email')
+      .limit(3);
+
+    console.log('2. Prueba con Service Role Key:', {
+      exito: !adminError && adminProfiles && adminProfiles.length > 0,
+      totalRegistrosDevueltos: adminProfiles?.length ?? 0,
+      datos: adminProfiles,
+      error: adminError,
+    });
+  } else {
+    console.log('2. Prueba con Service Role Key: OMITIDA (No existe la variable SUPABASE_SERVICE_ROLE_KEY)');
+  }
+
+  // 3. Probar lectura con cliente anónimo (Anon Key - la que se usa actualmente)
+  if (anonKey) {
+    const supabaseAnon = createClient(url!, anonKey, {
+      auth: { persistSession: false },
+    });
+
+    const { data: anonProfiles, error: anonError } = await supabaseAnon
+      .from('profiles')
+      .select('id, email')
+      .limit(3);
+
+    console.log('3. Prueba con Anon Key:', {
+      totalRegistrosDevueltos: anonProfiles?.length ?? 0,
+      datos: anonProfiles,
+      error: anonError,
+    });
+  }
+
+  console.log('--- FIN TEST DIAGNÓSTICO SUPABASE ---');
+
+  return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
 }
