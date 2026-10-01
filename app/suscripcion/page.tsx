@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase';
+
 
 interface SubscriptionDetails {
   plan_tier: string;
@@ -26,10 +27,7 @@ function SuscripcionContent() {
   const searchParams = useSearchParams();
   const isSuccess = searchParams.get('success') === 'true';
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createClient();
 
   const loadUserData = useCallback(async () => {
     try {
