@@ -47,19 +47,18 @@ export async function POST(req: Request) {
         const isPro = priceId === process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO;
         console.log(`User ${userId} subscribed to ${isPro ? 'Pro' : 'Basic'} plan with subscription ID: ${subscription.id}`);
         
-        // 1. Verificación previa: Consultar si el usuario existe antes del update
-        const { data: userProfile, error: findError } = await supabase
+        // Consulta para traer el primer registro que exista en la tabla profiles
+        const { data: firstProfile, error: findError } = await supabase
           .from('profiles')
           .select('id, email, subscription_status, plan_tier')
-          .eq('id', userId)
+          .limit(1)
           .maybeSingle();
 
-        console.log('🔍 Diagnóstico - Búsqueda de perfil:', {
+        console.log('🔍 Diagnóstico - BD en profiles:', {
           userIdBuscado: userId,
-          tipoUserId: typeof userId,
-          longitudUserId: userId?.length,
-          perfilEncontrado: userProfile,
+          primerRegistro: firstProfile,
           errorBusqueda: findError,
+          coincideID: firstProfile ? firstProfile.id === userId : false,
         });
 
         const { data, error, count } = await supabase
