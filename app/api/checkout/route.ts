@@ -27,8 +27,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_URL}/suscripcion?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_URL}/suscripcion?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_URL}/perfil?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_URL}/perfil?canceled=true`,
       metadata: {
         userId: userId,
       },

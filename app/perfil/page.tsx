@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { profile } from 'console';
 
 interface DoctorProfileForm {
   first_name: string;
@@ -42,9 +43,15 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  // 🛡️ Cambiado de headerFile/footerFile a pdfTemplateFile
+  // 🛡️ Plantilla PDF personalizada
   const [pdfTemplateFile, setPdfTemplateFile] = useState<File | null>(null);
   const [pdfTemplateUrl, setPdfTemplateUrl] = useState<string | null>(null);
+
+  const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [planTier, setPlanTier] = useState<string>('free');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('inactive');
+
 
   const [form, setForm] = useState<DoctorProfileForm>({
     first_name: '',
@@ -76,10 +83,15 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         // 1. Consultar tabla profiles
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('first_name, last_name, phone')
+          .select('first_name, last_name, phone, stripe_customer_id, plan_tier, subscription_status')
           .eq('id', user.id)
           .maybeSingle();
 
+        if (profileData?.stripe_customer_id) {
+          setPlanTier(profileData?.plan_tier || 'free');
+          setSubscriptionStatus(profileData?.subscription_status || 'inactive');
+          setStripeCustomerId(profileData?.stripe_customer_id || null);
+        }
         // 2. Consultar tabla doctors
         const { data: doctorData, error: doctorError } = await supabase
           .from('doctors')
@@ -152,7 +164,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
     }
   };
 
-  // 🛡️ Manejador para el archivo PDF personalizado del doctor
   const handlePdfTemplateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -182,6 +193,35 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
     setPdfTemplateUrl(null);
   };
 
+  const handleManageSubscription = async () => {
+    if (!stripeCustomerId) {
+      alert('No existe un historial de facturación vinculado a esta cuenta.');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeCustomerId }),
+      });
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url; // Redirige al Portal de Stripe
+      } else {
+        alert('No se pudo abrir el portal de facturación.');
+      }
+    } catch (error) {
+      console.error('Error al abrir el portal:', error);
+      alert('Error de conexión con el servicio de portal.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return;
@@ -197,11 +237,10 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
       if (!logoUrl) finalLogoUrl = null;
       if (!pdfTemplateUrl) finalPdfTemplateUrl = null;
 
-      // 1. Subir Logotipo si es nuevo archivo
       if (logoFile) {
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `${userId}-logo-${Date.now()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('logos')
           .upload(fileName, logoFile, { upsert: true });
@@ -215,13 +254,12 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         finalLogoUrl = publicURLData.publicUrl;
       }
 
-      // 2. Subir Plantilla PDF personalizada si es nuevo archivo
       if (pdfTemplateFile) {
         const fileExt = pdfTemplateFile.name.split('.').pop();
         const fileName = `${userId}-pdf-template-${Date.now()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
-          .from('doctor-assets') // Asegúrate de tener este bucket creado en Supabase
+          .from('doctor-assets')
           .upload(fileName, pdfTemplateFile, { upsert: true });
 
         if (uploadError) throw uploadError;
@@ -233,7 +271,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         finalPdfTemplateUrl = publicURLData.publicUrl;
       }
 
-      // 3. Upsert en profiles
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -247,7 +284,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
 
       if (profileError) throw profileError;
 
-      // 4. Upsert en doctors (utilizando la columna correcta custom_pdf_template_url)
       const doctorPayload: any = {
         profile_id: userId,
         medical_license: form.medical_license,
@@ -262,7 +298,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         state: form.state,
         postal_code: form.postal_code,
         clinic_logo_url: finalLogoUrl,
-        custom_pdf_template_url: finalPdfTemplateUrl, // 👈 Nombre correcto
+        custom_pdf_template_url: finalPdfTemplateUrl,
         updated_at: new Date().toISOString(),
       };
 
@@ -308,6 +344,51 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
       </div>
     );
   }
+
+  const handleCheckout = async (priceId: string) => {
+    if (!priceId) {
+      alert('ID de precio no configurado.');
+      return;
+    }
+
+    if (!userId || !userEmail) {
+      alert('No se encontró la información de la sesión del usuario.');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId,
+          email: userEmail,
+          priceId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 401) {
+        alert('Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.');
+        window.location.href = '/login';
+        return;
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || 'No se pudo iniciar la sesión de pago.');
+      }
+    } catch (error) {
+      console.error('Error en checkout:', error);
+      alert('Error de conexión con el servicio de pago.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
@@ -461,8 +542,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           {/* CONSULTORIO E IMÁGENES DE RECETA */}
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
             <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Consultorio / Clínica y Plantilla de Receta</h2>
-            
-            {/* Logotipo para Recetas */}
+
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
               <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
                 {logoUrl ? (
@@ -484,18 +564,18 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-600 uppercase block">Logotipo para Recetas (Opcional)</label>
                   {logoUrl && (
-                    <button 
-                      type="button" 
-                      onClick={handleRemoveLogo} 
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
                       className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
                     >
                       Eliminar imagen
                     </button>
                   )}
                 </div>
-                <input 
-                  type="file" 
-                  accept="image/png, image/jpeg, image/jpg" 
+                <input
+                  type="file"
+                  accept="image/png, image/jpeg, image/jpg"
                   onChange={handleLogoChange}
                   className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-[#0052FF] hover:file:bg-blue-100 cursor-pointer"
                 />
@@ -503,7 +583,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
               </div>
             </div>
 
-            {/* Plantilla PDF Personalizada (custom_pdf_template_url) */}
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
               <div className="w-28 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
                 {pdfTemplateUrl ? (
@@ -521,18 +600,18 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-600 uppercase block">Plantilla de Receta en PDF (Opcional)</label>
                   {pdfTemplateUrl && (
-                    <button 
-                      type="button" 
-                      onClick={handleRemovePdfTemplate} 
+                    <button
+                      type="button"
+                      onClick={handleRemovePdfTemplate}
                       className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
                     >
                       Eliminar PDF
                     </button>
                   )}
                 </div>
-                <input 
-                  type="file" 
-                  accept="application/pdf" 
+                <input
+                  type="file"
+                  accept="application/pdf"
                   onChange={handlePdfTemplateChange}
                   className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-[#0052FF] hover:file:bg-blue-100 cursor-pointer"
                 />
@@ -610,7 +689,98 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
             </div>
           </section>
 
-          {/* BOTÓN DE ACCIÓN */}
+          {/* 💳 SECCIÓN: SUSCRIPCIÓN Y PLANES */}
+          <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider">Suscripción y Planes</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Gestiona tu plan actual o cambia de nivel para desbloquear más funciones.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-semibold uppercase">Estado:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${subscriptionStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                  {subscriptionStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}
+                </span>
+              </div>
+            </div>
+
+            {/* Si ya tiene suscripción / customer_id, mostrar opción de administrar */}
+            {stripeCustomerId ? (
+              <div className="bg-slate-50/70 p-5 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-slate-900 capitalize">
+                    {planTier && planTier !== 'free' ? `Plan ${planTier} Activo` : 'Suscripción Activa'}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Gestiona tus tarjetas, métodos de pago o cancela tu suscripción a través del portal seguro de Stripe.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleManageSubscription}
+                  disabled={actionLoading}
+                  className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
+                >
+                  {actionLoading ? 'Abriendo portal...' : 'Administrar Tarjeta / Cancelar'}
+                </button>
+              </div>
+            ) : (
+              /* Si no tiene suscripción, mostrar los dos planes disponibles */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Plan Básico */}
+                <div className={`border rounded-xl p-5 flex flex-col justify-between bg-slate-50/50 ${planTier === 'basic' ? 'border-[#0052FF] bg-blue-50/20' : 'border-slate-200'}`}>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Plan Básico</h3>
+                    <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                      $499 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                    </p>
+                    <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+                      <li>✓ Expediente clínico electrónico</li>
+                      <li>✓ Notas SOAP asistidas por IA</li>
+                      <li>✓ Prescripción médica estándar</li>
+                    </ul>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASIC || '')}
+                    disabled={actionLoading || planTier === 'basic'}
+                    className="mt-5 w-full py-2.5 bg-slate-900 text-white font-semibold text-xs rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all"
+                  >
+                    {planTier === 'basic' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Contratar Básico'}
+                  </button>
+                </div>
+
+                {/* Plan Pro */}
+                <div className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-blue-50/10 ${planTier === 'pro' ? 'border-[#0052FF]' : 'border-[#0052FF]/60'}`}>
+                  <span className="absolute -top-2.5 right-4 bg-[#0052FF] text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                    RECOMENDADO
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Plan Pro</h3>
+                    <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                      $799 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                    </p>
+                    <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+                      <li>✓ Todo lo del Plan Básico</li>
+                      <li>✓ <strong>Personalización de Recetas con Membrete</strong></li>
+                      <li>✓ Cédula de Especialidad y Firma Digital</li>
+                    </ul>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || '')}
+                    disabled={actionLoading || planTier === 'pro'}
+                    className="mt-5 w-full py-2.5 bg-[#0052FF] text-white font-semibold text-xs rounded-xl hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-all shadow-xs"
+                  >
+                    {planTier === 'pro' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Obtener Plan Pro'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* BOTÓN DE ACCIÓN GENERAL */}
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
@@ -620,8 +790,8 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
               {saving
                 ? 'Guardando...'
                 : mode === 'onboarding'
-                ? 'Completar Registro'
-                : 'Guardar Todos los Cambios'}
+                  ? 'Completar Registro'
+                  : 'Guardar Todos los Cambios'}
             </button>
           </div>
         </form>
