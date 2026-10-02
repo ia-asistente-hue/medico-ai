@@ -63,26 +63,29 @@ export async function getMergedPdfBlobUrl(params: any): Promise<string> {
   // FIRMA DEL DOCTOR
   const signatureY = 100;
   const doctorName = doctor?.profile ? `Dr(a). ${doctor.profile.first_name || ''} ${doctor.profile.last_name || ''}` : 'Dr(a). Tratante';
-  
-  firstPage.drawText(doctorName, { x: width / 2 - 80, y: signatureY + 25, size: 10, font: fontBold, color: textColor });
-  firstPage.drawText(`Cédula Prof: ${doctor?.medical_license || 'S/N'} | ${doctor?.specialty || 'General'}`, { x: width / 2 - 100, y: signatureY + 12, size: 8, font: font, color: rgb(0.4, 0.4, 0.4) });
+  if (!doctor?.custom_pdf_template_url) {
 
-  if (doctor?.digital_signature_url) {
-    try {
-      const sigImageBytes = await fetch(doctor.digital_signature_url).then((res) => res.arrayBuffer());
-      const sigImage = await pdfDoc.embedPng(sigImageBytes);
-      firstPage.drawImage(sigImage, {
-        x: width / 2 - 50,
-        y: signatureY + 35,
-        width: 100,
-        height: 40,
-      });
-    } catch (e) {
-      console.error('No se pudo incrustar la firma en el PDF:', e);
+    firstPage.drawText(doctorName, { x: width / 2 - 80, y: signatureY + 25, size: 10, font: fontBold, color: textColor });
+    firstPage.drawText(`Cédula Prof: ${doctor?.medical_license || 'S/N'} | ${doctor?.specialty || 'General'}`, { x: width / 2 - 100, y: signatureY + 12, size: 8, font: font, color: rgb(0.4, 0.4, 0.4) });
+
+
+    if (doctor?.digital_signature_url) {
+      try {
+        const sigImageBytes = await fetch(doctor.digital_signature_url).then((res) => res.arrayBuffer());
+        const sigImage = await pdfDoc.embedPng(sigImageBytes);
+        firstPage.drawImage(sigImage, {
+          x: width / 2 - 50,
+          y: signatureY + 35,
+          width: 100,
+          height: 40,
+        });
+      } catch (e) {
+        console.error('No se pudo incrustar la firma en el PDF:', e);
+      }
     }
   }
 
- const modifiedPdfBytes = await pdfDoc.save();
+  const modifiedPdfBytes = await pdfDoc.save();
   const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
   return URL.createObjectURL(blob);
 }
