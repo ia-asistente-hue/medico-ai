@@ -11,6 +11,7 @@ import AudioRecorder from '@/components/consultation/AudioRecorder';
 import SoapEditor from '@/components/consultation/SoapEditor';
 import PrescriptionBuilder from '@/components/prescription/PrescriptionBuilder';
 import PatientSelector from '@/components/consultation/PatientSelector';
+import { ModeSelectorModal } from '@/components/consultation/ModeSelectorModal';
 import TrialBanner from '@/components/common/TrialBanner';
 
 import { getDecryptedPatientListAction } from '@/app/actions/patients';
@@ -85,6 +86,11 @@ function NuevaConsultaContent() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
+  // Nuevos estados para control de grabaciones y modal de selección
+  const [planTier, setPlanTier] = useState<string>('trial');
+  const [recordingsUsed, setRecordingsUsed] = useState<number>(0);
+  const [showModeSelectorModal, setShowModeSelectorModal] = useState(false);
+
   // Estados para el buscador interactivo de pacientes
   const [patientQuery, setPatientQuery] = useState('');
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
@@ -151,6 +157,45 @@ function NuevaConsultaContent() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // Función para determinar el límite según el plan del doctor
+  const getRecordingLimit = (tier: string) => {
+    if (tier === 'pro') return 300;
+    if (tier === 'basic') return 150;
+    return 10; // Trial o Free
+  };
+
+  const recordingLimit = getRecordingLimit(planTier);
+
+  // Función que se ejecuta al presionar "Iniciar Consulta" (paso 1 completado)
+  const handleAbrirSelectorModo = async () => {
+    if (!selectedPatient || !doctorId) {
+      setErrorMessage('Por favor selecciona o registra un paciente.');
+      return;
+    }
+    setErrorMessage(null);
+    setShowModeSelectorModal(true);
+  };
+
+  // Función para incrementar el contador en profiles cuando se usa nota de voz
+  const incrementarContadorGrabaciones = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const nuevoValor = recordingsUsed + 1;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ recordings_used: nuevoValor })
+        .eq('id', user.id);
+
+      if (!error) {
+        setRecordingsUsed(nuevoValor);
+      }
+    } catch (err) {
+      console.error('Error al actualizar contador de grabaciones:', err);
+    }
+  };
+
   // Validación y carga inicial del doctor
   useEffect(() => {
     async function initData() {
@@ -166,7 +211,7 @@ function NuevaConsultaContent() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('subscription_status, plan_tier')
+          .select('subscription_status, plan_tier, recordings_used')
           .eq('id', user.id)
           .single();
 
@@ -174,6 +219,8 @@ function NuevaConsultaContent() {
           router.push('/perfil');
           return;
         }
+        setPlanTier(profile.plan_tier || 'trial');
+        setRecordingsUsed(profile.recordings_used || 0);
 
         const { data: doctor, error } = await supabase
           .from('doctors')
@@ -527,7 +574,7 @@ function NuevaConsultaContent() {
       <TrialBanner />
       <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <Link href="/consulta/nueva" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
               <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
             </div>
@@ -621,7 +668,7 @@ function NuevaConsultaContent() {
             patientDropdownRef={patientDropdownRef}
             onSelectPatient={(patient) => setSelectedPatient(patient)}
             onOpenNewPatientModal={() => setIsNewPatientModalOpen(true)}
-            onIniciarEncuentro={iniciarEncuentro}
+            onIniciarEncuentro={handleAbrirSelectorModo}
           />
         )}
 
@@ -902,6 +949,75 @@ function NuevaConsultaContent() {
           </div>
         </div>
       )}
+
+      {showFinalReviewModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900">MedikAI — Validación Final</h3>
+            <p className="text-xs text-slate-600">
+              Por favor, asegúrate de haber revisado y actualizado la Nota SOAP y la receta generada por la IA en caso de ser necesario. ¿Los datos son correctos y deseas finalizar y guardar la consulta?
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowFinalReviewModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
+              >
+                Hacer ajustes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFinalReviewModal(false);
+                  ejecutarGuardadoDefinitivo(medicamentosPendientesFinales);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Sí, Guardar Consulta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 COMPONENTE DEL MODAL DE SELECCIÓN DE MODO */}
+      <ModeSelectorModal
+        isOpen={showModeSelectorModal}
+        onClose={() => setShowModeSelectorModal(false)}
+        planTier={planTier}
+        recordingsUsed={recordingsUsed}
+        recordingLimit={recordingLimit}
+        patientName={selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : ''}
+        isLimitReached={recordingsUsed >= recordingLimit}
+        onSelectVoice={async () => {
+          setShowModeSelectorModal(false);
+          if (recordingsUsed >= recordingLimit) {
+            setErrorMessage('Has alcanzado el límite de grabaciones de tu plan actual.');
+            return;
+          }
+          await incrementarContadorGrabaciones();
+          await iniciarEncuentro();
+        }}
+        onSelectManual={async () => {
+          setShowModeSelectorModal(false);
+          if (!selectedPatient || !doctorId) return;
+
+          const { data: encounter, error } = await supabase
+            .from('encounters')
+            .insert([{ doctor_id: doctorId, patient_id: selectedPatient.id, status: 'in_progress' }])
+            .select()
+            .single();
+
+          if (error) {
+            setErrorMessage('Error al iniciar la consulta: ' + error.message);
+            return;
+          }
+
+          setEncounterId(encounter.id);
+          setEditableSoap({ subjetivo: '', objetivo: '', analisis: '', plan: '' });
+          setMedicamentos([]);
+        }}
+      />
     </div>
   );
 }

@@ -54,6 +54,11 @@ export async function POST(req: Request) {
     }
 
     console.log(`💳 Procesando suscripción para el usuario: ${userId || customerEmail}`);
+    // Si usas Checkout Session, recuperas la suscripción directamente con el SDK de Stripe:
+// Forzamos el tipo con 'any' para evitar que TypeScript se queje de la propiedad
+    const subscription: any = await stripe.subscriptions.retrieve(session.subscription as string);
+
+    const subscriptionEndDate = new Date(subscription.current_period_end * 1000);
 
     // 1. Intentar actualizar por ID de usuario
     let { data, error } = await supabaseAdmin
@@ -61,9 +66,11 @@ export async function POST(req: Request) {
       .update({
         subscription_status: 'active',
         plan_tier: planTier,
+        recordings_used: 0,
         stripe_customer_id: customerId,
         stripe_subscription_id: subscriptionId,
         updated_at: new Date().toISOString(),
+        current_period_end: subscriptionEndDate.toISOString(),
       })
       .eq('id', userId)
       .select();
@@ -76,9 +83,11 @@ export async function POST(req: Request) {
         .update({
           subscription_status: 'active',
           plan_tier: planTier,
+          recordings_used: 0,
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           updated_at: new Date().toISOString(),
+          current_period_end: subscriptionEndDate.toISOString(),
         })
         .eq('email', customerEmail)
         .select();
