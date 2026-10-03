@@ -126,7 +126,7 @@ export async function POST(req: Request) {
 
     const customerId = subscription.customer as string;
     const subscriptionId = subscription.id;
-    const status = subscription.status; // 'active', 'past_due', 'canceled', etc.
+    const status = subscription.status; 
     const priceId = subscription.items.data[0]?.price.id;
 
     console.log(`🔄 Procesando actualización de suscripción para customer ID: ${customerId}, estado: ${status}`);
@@ -136,11 +136,17 @@ export async function POST(req: Request) {
       planTier = 'pro';
     }
 
-    const subscriptionAny: any = subscription;
-    const subscriptionEndDate = new Date(subscriptionAny.current_period_end * 1000);
+    // 🟢 Extracción segura de la fecha con múltiples respaldos para evitar "Invalid time value"
+    const rawTimestamp = 
+      subscription.items.data[0]?.current_period_end || 
+      (subscription as any).current_period_end;
+
+    // Si por alguna razón viene vacío, usamos el tiempo actual por defecto
+    const timestampToUse = rawTimestamp ? rawTimestamp * 1000 : Date.now();
+    const subscriptionEndDate = new Date(timestampToUse);
+    
     console.log(`📅 Nueva fecha fin de periodo: ${subscriptionEndDate.toISOString()}`);
 
-    // Determinamos si la suscripción está activa para decidir si reseteamos créditos o no
     const subscriptionStatus = status === 'active' ? 'active' : 'inactive';
 
     const payloadRenovacion = {
@@ -148,8 +154,6 @@ export async function POST(req: Request) {
       plan_tier: planTier,
       current_period_end: subscriptionEndDate.toISOString(),
       updated_at: new Date().toISOString(),
-      // 🟢 Opcional inteligente: Si el periodo se acaba de extender (renovación), reiniciamos recordings_used a 0.
-      // Si solo es un cambio menor, puedes quitar esto o dejarlo condicionado.
       ...(status === 'active' && { recordings_used: 0 }),
     };
 
