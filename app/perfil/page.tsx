@@ -325,7 +325,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
         setLogoFile(null);
         setPdfTemplateUrl(finalPdfTemplateUrl);
         setPdfTemplateFile(null);
-        setSuccessMessage('¡Perfil, datos profesionales y plantilla PDF actualizados correctamente!');
+        setSuccessMessage('¡Perfil actualizado correctamente!');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err: any) {
