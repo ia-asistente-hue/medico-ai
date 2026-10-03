@@ -49,7 +49,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
 
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [planTier, setPlanTier] = useState<string>('free');
+  const [planTier, setPlanTier] = useState<string>('trial');
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>('inactive');
 
 
@@ -87,11 +87,10 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           .eq('id', user.id)
           .maybeSingle();
 
-        if (profileData?.stripe_customer_id) {
-          setPlanTier(profileData?.plan_tier || 'free');
+          setPlanTier(profileData?.plan_tier || 'trial');
           setSubscriptionStatus(profileData?.subscription_status || 'inactive');
           setStripeCustomerId(profileData?.stripe_customer_id || null);
-        }
+        
         // 2. Consultar tabla doctors
         const { data: doctorData, error: doctorError } = await supabase
           .from('doctors')
@@ -448,95 +447,98 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           </div>
         )}
         {/* 💳 SECCIÓN: SUSCRIPCIÓN Y PLANES */}
-        <section id="planes" className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div>
-              <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider">Suscripción y Planes</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Gestiona tu plan actual o cambia de nivel para desbloquear más funciones.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-semibold uppercase">Estado:</span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${subscriptionStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                }`}>
-                {subscriptionStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}
-              </span>
-            </div>
-          </div>
-
-          {/* Si ya tiene suscripción / customer_id, mostrar opción de administrar */}
-          {stripeCustomerId ? (
-            <div className="bg-slate-50/70 p-5 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {planTier !== 'free_pro' && (
+          <section id="planes" className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
-                <p className="text-sm font-bold text-slate-900 capitalize">
-                  {planTier && planTier !== 'free' ? `Plan ${planTier} Activo` : 'Suscripción Activa'}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Gestiona tus tarjetas, métodos de pago o cancela tu suscripción a través del portal seguro de Stripe.
-                </p>
+                <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider">Suscripción y Planes</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Gestiona tu plan actual o cambia de nivel para desbloquear más funciones.</p>
               </div>
-              <button
-                type="button"
-                onClick={handleManageSubscription}
-                disabled={actionLoading}
-                className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
-              >
-                {actionLoading ? 'Abriendo portal...' : 'Administrar Tarjeta / Cancelar'}
-              </button>
-            </div>
-          ) : (
-            /* Si no tiene suscripción, mostrar los dos planes disponibles */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Plan Básico */}
-              <div className={`border rounded-xl p-5 flex flex-col justify-between bg-slate-50/50 ${planTier === 'basic' ? 'border-[#0052FF] bg-blue-50/20' : 'border-slate-200'}`}>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Plan Básico</h3>
-                  <p className="text-2xl font-extrabold text-slate-900 mt-1">
-                    $499 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
-                  </p>
-                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
-                    <li>✓ Expediente clínico electrónico</li>
-                    <li>✓ 150 Notas SOAP asistidas por IA</li>
-                    <li>✓ Prescripción médica estándar</li>
-                  </ul>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASIC || '')}
-                  disabled={actionLoading || planTier === 'basic'}
-                  className="mt-5 w-full py-2.5 bg-slate-900 text-white font-semibold text-xs rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all"
-                >
-                  {planTier === 'basic' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Contratar Básico'}
-                </button>
-              </div>
-
-              {/* Plan Pro */}
-              <div className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-blue-50/10 ${planTier === 'pro' ? 'border-[#0052FF]' : 'border-[#0052FF]/60'}`}>
-                <span className="absolute -top-2.5 right-4 bg-[#0052FF] text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
-                  RECOMENDADO
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-semibold uppercase">Estado:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${subscriptionStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                  {subscriptionStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}
                 </span>
+              </div>
+            </div>
+
+            {/* Si ya tiene suscripción / customer_id, mostrar opción de administrar */}
+            {stripeCustomerId ? (
+              <div className="bg-slate-50/70 p-5 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Plan Pro</h3>
-                  <p className="text-2xl font-extrabold text-slate-900 mt-1">
-                    $799 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                  <p className="text-sm font-bold text-slate-900 capitalize">
+                    {planTier && planTier !== 'free_pro' ? `Plan ${planTier} Activo` : 'Suscripción Activa'}
                   </p>
-                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
-                    <li>✓ Expediente clínico electrónico</li>
-                    <li>✓ 300 Notas SOAP asistidas por IA</li>
-                    <li>✓ <strong>Personalización de Recetas con Membrete</strong></li>
-                  </ul>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Gestiona tus tarjetas, métodos de pago o cancela tu suscripción a través del portal seguro de Stripe.
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || '')}
-                  disabled={actionLoading || planTier === 'pro'}
-                  className="mt-5 w-full py-2.5 bg-[#0052FF] text-white font-semibold text-xs rounded-xl hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-all shadow-xs"
+                  onClick={handleManageSubscription}
+                  disabled={actionLoading}
+                  className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
                 >
-                  {planTier === 'pro' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Obtener Plan Pro'}
+                  {actionLoading ? 'Abriendo portal...' : 'Administrar Tarjeta / Cancelar'}
                 </button>
               </div>
-            </div>
-          )}
-        </section>
+            ) : (
+              /* Si no tiene suscripción, mostrar los dos planes disponibles */
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Plan Básico */}
+                <div className={`border rounded-xl p-5 flex flex-col justify-between bg-slate-50/50 ${planTier === 'basic' ? 'border-[#0052FF] bg-blue-50/20' : 'border-slate-200'}`}>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Plan Básico</h3>
+                    <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                      $499 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                    </p>
+                    <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+                      <li>✓ Expediente clínico electrónico</li>
+                      <li>✓ 150 Notas SOAP asistidas por IA</li>
+                      <li>✓ Prescripción médica estándar</li>
+                    </ul>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASIC || '')}
+                    disabled={actionLoading || planTier === 'basic'}
+                    className="mt-5 w-full py-2.5 bg-slate-900 text-white font-semibold text-xs rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all"
+                  >
+                    {planTier === 'basic' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Contratar Básico'}
+                  </button>
+                </div>
+
+                {/* Plan Pro */}
+                <div className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-blue-50/10 ${planTier === 'pro' ? 'border-[#0052FF]' : 'border-[#0052FF]/60'}`}>
+                  <span className="absolute -top-2.5 right-4 bg-[#0052FF] text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                    RECOMENDADO
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Plan Pro</h3>
+                    <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                      $799 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                    </p>
+                    <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+                      <li>✓ Expediente clínico electrónico</li>
+                      <li>✓ 300 Notas SOAP asistidas por IA</li>
+                      <li>✓ <strong>Personalización de Recetas con Membrete</strong></li>
+                    </ul>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || '')}
+                    disabled={actionLoading || planTier === 'pro'}
+                    className="mt-5 w-full py-2.5 bg-[#0052FF] text-white font-semibold text-xs rounded-xl hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-all shadow-xs"
+                  >
+                    {planTier === 'pro' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Obtener Plan Pro'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         <form onSubmit={handleSave} className="space-y-6">
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
             <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Información Personal</h2>
@@ -629,87 +631,87 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           </section>
 
           {/* CONSULTORIO E IMÁGENES DE RECETA */}
-          {planTier === 'pro' || planTier === 'trial' || planTier === 'free_pro'? (
-          <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
-            <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Logo o Plantilla de Receta</h2>
+          {planTier === 'pro' || planTier === 'trial' || planTier === 'free_pro' ? (
+            <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+              <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Logo o Plantilla de Receta</h2>
 
-            <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
-              <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
-                {logoUrl ? (
-                  <>
-                    <img src={logoUrl} alt="Logo Consultorio" className="w-full h-full object-contain p-1" />
-                    <button
-                      type="button"
-                      onClick={handleRemoveLogo}
-                      className="absolute inset-0 bg-slate-900/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold cursor-pointer"
-                    >
-                      Quitar
-                    </button>
-                  </>
-                ) : (
-                  <span className="text-[10px] text-slate-400 font-medium text-center px-1">Sin logo</span>
-                )}
-              </div>
-              <div className="flex-1 w-full space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-600 uppercase block">Logotipo para Recetas (Opcional)</label>
-                  {logoUrl && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveLogo}
-                      className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
-                    >
-                      Eliminar imagen
-                    </button>
+              <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
+                <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
+                  {logoUrl ? (
+                    <>
+                      <img src={logoUrl} alt="Logo Consultorio" className="w-full h-full object-contain p-1" />
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="absolute inset-0 bg-slate-900/40 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                      >
+                        Quitar
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium text-center px-1">Sin logo</span>
                   )}
                 </div>
-                <input
-                  type="file"
-                  accept="image/png, image/jpeg, image/jpg"
-                  onChange={handleLogoChange}
-                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-[#0052FF] hover:file:bg-blue-100 cursor-pointer"
-                />
-                <p className="text-[11px] text-slate-400">Formato PNG o JPG recomendado. Máximo 2MB.</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
-              <div className="w-28 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
-                {pdfTemplateUrl ? (
-                  <div className="flex flex-col items-center justify-center text-center p-1">
-                    <svg className="h-6 w-6 text-red-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-[9px] font-bold text-slate-600 truncate max-w-[90px]">PDF Cargado</span>
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-600 uppercase block">Logotipo para Recetas (Opcional)</label>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
+                      >
+                        Eliminar imagen
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <span className="text-[10px] text-slate-400 font-medium text-center px-1">Sin plantilla PDF</span>
-                )}
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg"
+                    onChange={handleLogoChange}
+                    className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-[#0052FF] hover:file:bg-blue-100 cursor-pointer"
+                  />
+                  <p className="text-[11px] text-slate-400">Formato PNG o JPG recomendado. Máximo 2MB.</p>
+                </div>
               </div>
-              <div className="flex-1 w-full space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-600 uppercase block">Plantilla de Receta en PDF (Opcional)</label>
-                  {pdfTemplateUrl && (
-                    <button
-                      type="button"
-                      onClick={handleRemovePdfTemplate}
-                      className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
-                    >
-                      Eliminar PDF
-                    </button>
+
+              <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
+                <div className="w-28 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
+                  {pdfTemplateUrl ? (
+                    <div className="flex flex-col items-center justify-center text-center p-1">
+                      <svg className="h-6 w-6 text-red-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-[9px] font-bold text-slate-600 truncate max-w-[90px]">PDF Cargado</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium text-center px-1">Sin plantilla PDF</span>
                   )}
                 </div>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handlePdfTemplateChange}
-                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-[#0052FF] hover:file:bg-blue-100 cursor-pointer"
-                />
-                <p className="text-[11px] text-slate-400">Si subes un PDF, las recetas usarán tu formato personalizado. Máximo 10MB.</p>
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-600 uppercase block">Plantilla de Receta en PDF (Opcional)</label>
+                    {pdfTemplateUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePdfTemplate}
+                        className="text-xs text-rose-600 hover:underline font-medium cursor-pointer"
+                      >
+                        Eliminar PDF
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfTemplateChange}
+                    className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-[#0052FF] hover:file:bg-blue-100 cursor-pointer"
+                  />
+                  <p className="text-[11px] text-slate-400">Si subes un PDF, las recetas usarán tu formato personalizado. Máximo 10MB.</p>
+                </div>
               </div>
-            </div>
 
-          </section>) : null}
+            </section>) : null}
 
           {/* CONSULTORIO E IMÁGENES DE RECETA */}
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
