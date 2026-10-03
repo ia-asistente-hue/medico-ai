@@ -629,7 +629,7 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           </section>
 
           {/* CONSULTORIO E IMÁGENES DE RECETA */}
-          {planTier === 'pro' || planTier === 'trial' || planTier === 'free'? (
+          {planTier === 'pro' || planTier === 'trial' || planTier === 'free_pro'? (
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
             <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Logo o Plantilla de Receta</h2>
 
