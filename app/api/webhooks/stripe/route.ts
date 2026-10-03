@@ -38,7 +38,6 @@ export async function POST(req: Request) {
 
   console.log(`🔔 Evento recibido de Stripe: ${event.type}`);
 
-  // 1️⃣ EVENTO: Checkout inicial completado
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
 
@@ -49,9 +48,11 @@ export async function POST(req: Request) {
 
     console.log('🔍 Datos extraídos de la sesión:', { userId, customerId, subscriptionId, customerEmail });
 
+    // Determinar el plan según la información obtenida
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
     const priceId = lineItems.data[0]?.price?.id;
 
+    // 🟢 Logs detallados de los Price IDs para depuración
     console.log('🏷️ Price ID recibido de Stripe:', priceId);
     console.log('🏷️ Price ID configurado en PRO (Env):', process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO);
 
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       planTier = 'pro';
     }
     
+    // 🟢 Log explícito del plan que se va a aplicar en la BD
     console.log(`✨ PLAN DETERMINADO A APLICAR: [ ${planTier.toUpperCase()} ] para el usuario ${userId || customerEmail}`);
 
     if (!session.subscription) {
@@ -71,6 +73,7 @@ export async function POST(req: Request) {
     const subscriptionEndDate = new Date(subscription.current_period_end * 1000);
     console.log(`📅 Fecha fin de periodo calculada: ${subscriptionEndDate.toISOString()}`);
 
+    // Datos exactos que se van a mandar a Supabase
     const payloadActualizacion = {
       subscription_status: 'active',
       plan_tier: planTier,
@@ -81,6 +84,7 @@ export async function POST(req: Request) {
       current_period_end: subscriptionEndDate.toISOString(),
     };
 
+    // 1. Intentar actualizar por ID de usuario
     console.log(`🔄 Intentando actualizar perfil en Supabase por ID: ${userId} con los datos:`, payloadActualizacion);
     let { data, error } = await supabaseAdmin
       .from('profiles')
@@ -92,6 +96,7 @@ export async function POST(req: Request) {
       console.error('❌ Error en Supabase al actualizar por ID:', error);
     }
 
+    // 2. Respaldo por email si no coincidió el ID o no arrojó datos
     if ((!data || data.length === 0) && customerEmail) {
       console.log(`⚠️ ID no coincidió o no devolvió registros. Actualizando por correo: ${customerEmail}`);
       const updateByEmail = await supabaseAdmin
@@ -108,7 +113,7 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log('✅ Resultado final de actualización en Supabase (Checkout):', { 
+    console.log('✅ Resultado final de actualización en Supabase:', { 
       filasActualizadas: data?.length || 0, 
       data, 
       error 
@@ -131,7 +136,8 @@ export async function POST(req: Request) {
       planTier = 'pro';
     }
 
-    const subscriptionEndDate = new Date(subscription.current_period_end * 1000);
+    const subscriptionAny: any = subscription;
+    const subscriptionEndDate = new Date(subscriptionAny.current_period_end * 1000);
     console.log(`📅 Nueva fecha fin de periodo: ${subscriptionEndDate.toISOString()}`);
 
     // Determinamos si la suscripción está activa para decidir si reseteamos créditos o no
