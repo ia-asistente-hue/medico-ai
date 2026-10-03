@@ -988,7 +988,7 @@ function NuevaConsultaContent() {
         recordingsUsed={recordingsUsed}
         recordingLimit={recordingLimit}
         patientName={selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : ''}
-        isLimitReached={recordingsUsed >= recordingLimit}
+        isLimitReached={planTier === 'free_pro' ? false : recordingsUsed >= recordingLimit}
         onSelectVoice={async () => {
           setShowModeSelectorModal(false);
           if (recordingsUsed >= recordingLimit) {

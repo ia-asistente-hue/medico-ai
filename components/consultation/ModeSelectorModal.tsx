@@ -29,9 +29,11 @@ export const ModeSelectorModal: React.FC<ModeSelectorModalProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 border border-slate-100">
         <div>
-          <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-[#0052FF] mb-2">
-            Plan {planTier.toUpperCase()} • {recordingsUsed} / {recordingLimit} usadas
-          </span>
+          {planTier !== 'free_pro' && (
+            <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-[#0052FF] mb-2">
+              Plan {planTier.toUpperCase()} - {recordingsUsed} / {recordingLimit} usadas
+            </span>
+          )}
           <h3 className="text-base font-bold text-slate-900">¿Cómo deseas realizar esta consulta?</h3>
           <p className="text-xs text-slate-500 mt-1">
             Selecciona el método de captura para la nota SOAP y la receta médica de <span className="font-semibold text-slate-700">{patientName}</span>.
@@ -44,11 +46,10 @@ export const ModeSelectorModal: React.FC<ModeSelectorModalProps> = ({
             type="button"
             disabled={isLimitReached}
             onClick={onSelectVoice}
-            className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-3.5 group ${
-              isLimitReached 
-                ? 'opacity-50 cursor-not-allowed bg-slate-50 border-slate-200' 
+            className={`w-full text-left p-4 rounded-xl border transition-all flex items-start gap-3.5 group ${isLimitReached
+                ? 'opacity-50 cursor-not-allowed bg-slate-50 border-slate-200'
                 : 'border-blue-100 bg-blue-50/40 hover:bg-blue-50/80 hover:border-blue-300 cursor-pointer'
-            }`}
+              }`}
           >
             <div className="h-9 w-9 rounded-xl bg-blue-100 text-[#0052FF] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
               🎙️
