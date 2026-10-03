@@ -12,6 +12,7 @@ import SoapEditor from '@/components/consultation/SoapEditor';
 import PrescriptionBuilder from '@/components/prescription/PrescriptionBuilder';
 import { getDecryptedPatientListAction } from '@/app/actions/patients';
 import { guardarRecetaSeguraAction } from '@/app/actions/prescriptions';
+import TrialBanner from '@/components/common/TrialBanner';
 
 // Configuración de límites de grabación
 const MAX_RECORDING_SECONDS = 600; // 10 minutos máximo por grabación
@@ -82,7 +83,7 @@ function NuevaConsultaContent() {
   const [medError, setMedError] = useState<string | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  
+
   const [showIncompleteMedModal, setShowIncompleteMedModal] = useState(false);
   // Estados para el buscador interactivo de pacientes
   const [patientQuery, setPatientQuery] = useState('');
@@ -163,6 +164,19 @@ function NuevaConsultaContent() {
           return;
         }
 
+        // 1. Verificar perfil y estatus de suscripción
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles') // O la tabla donde guardes la suscripción (ej. 'doctors')
+          .select('subscription_status, plan_tier')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError || profile?.subscription_status !== 'active') {
+          // Redirigir al perfil/planes si no tiene suscripción activa
+          router.push('/perfil');
+          return;
+        }
+
         const { data: doctor, error } = await supabase
           .from('doctors')
           .select('id')
@@ -173,6 +187,7 @@ function NuevaConsultaContent() {
           router.push('/onboarding');
           return;
         }
+
 
         setDoctorId(doctor.id);
         await cargarPacientes(doctor.id, patientIdFromUrl);
@@ -192,7 +207,7 @@ function NuevaConsultaContent() {
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => {
           if (prev + 1 >= MAX_RECORDING_SECONDS) {
-            stopRecording(); 
+            stopRecording();
             setErrorMessage('Se alcanzó el límite máximo de 10 minutos por grabación.');
             return MAX_RECORDING_SECONDS;
           }
@@ -287,7 +302,7 @@ function NuevaConsultaContent() {
 
       await cargarPacientes(doctorId, newPatient.id);
       setIsNewPatientModalOpen(false);
-      
+
       setNewPatientData({
         first_name: '',
         last_name: '',
@@ -402,7 +417,7 @@ function NuevaConsultaContent() {
       }
 
       const rawMeds = data.prescription?.medications || data.prescription?.medication_list || data.medications || [];
-      
+
       const medicamentosPlanos = rawMeds.map((med: any) => ({
         medicamento: typeof med === 'string' ? med : (med.medicamento || med.nombre || med.name || ''),
         dosis: med.dosis || med.dosage || '',
@@ -511,10 +526,14 @@ function NuevaConsultaContent() {
     );
   }
 
+
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
       <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <TrialBanner /> {/* <--- Aquí se mostrará el aviso si es un usuario en trial */}
+          <header>{/* Tu barra de navegación normal */}</header>
+          <main>{/* Contenido principal */}</main>
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
               <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
@@ -549,13 +568,12 @@ function NuevaConsultaContent() {
             <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100 z-0"></div>
 
             <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
-                currentStep > 1 
-                  ? 'bg-emerald-500 text-white' 
-                  : currentStep === 1 
-                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${currentStep > 1
+                ? 'bg-emerald-500 text-white'
+                : currentStep === 1
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50'
                   : 'bg-slate-100 text-slate-600'
-              }`}>
+                }`}>
                 {currentStep > 1 ? '✓' : '1'}
               </div>
               <span className={`text-xs font-semibold ${currentStep === 1 ? 'text-[#0052FF]' : currentStep > 1 ? 'text-emerald-700 font-medium' : 'text-slate-700'}`}>
@@ -564,13 +582,12 @@ function NuevaConsultaContent() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
-                currentStep > 2 
-                  ? 'bg-emerald-500 text-white' 
-                  : currentStep === 2 
-                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${currentStep > 2
+                ? 'bg-emerald-500 text-white'
+                : currentStep === 2
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50'
                   : 'bg-slate-100 text-slate-700'
-              }`}>
+                }`}>
                 {currentStep > 2 ? '✓' : '2'}
               </div>
               <span className={`text-xs font-semibold ${currentStep === 2 ? 'text-[#0052FF]' : currentStep > 2 ? 'text-emerald-700 font-medium' : 'text-slate-700'}`}>
@@ -579,11 +596,10 @@ function NuevaConsultaContent() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
-                currentStep === 3 
-                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
-                  : 'bg-slate-100 text-slate-700'
-              }`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${currentStep === 3
+                ? 'bg-[#0052FF] text-white ring-4 ring-blue-50'
+                : 'bg-slate-100 text-slate-700'
+                }`}>
                 3
               </div>
               <span className={`text-xs font-semibold ${currentStep === 3 ? 'text-[#0052FF]' : 'text-slate-700'}`}>
@@ -627,7 +643,7 @@ function NuevaConsultaContent() {
                           Paciente listo para consulta
                         </span>
                       </div>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => {
                           setSelectedPatient(null);
@@ -683,7 +699,7 @@ function NuevaConsultaContent() {
                       Buscar o seleccionar paciente registrado
                     </label>
 
-                    <div 
+                    <div
                       onClick={() => setIsPatientDropdownOpen(true)}
                       className="flex items-center gap-2.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-[#1A202C] cursor-pointer focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0052FF]/10 transition-all"
                     >

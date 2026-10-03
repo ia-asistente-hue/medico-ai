@@ -447,7 +447,96 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
             {errorMessage}
           </div>
         )}
+        {/* 💳 SECCIÓN: SUSCRIPCIÓN Y PLANES */}
+        <section id="planes" className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider">Suscripción y Planes</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Gestiona tu plan actual o cambia de nivel para desbloquear más funciones.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold uppercase">Estado:</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${subscriptionStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                }`}>
+                {subscriptionStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}
+              </span>
+            </div>
+          </div>
 
+          {/* Si ya tiene suscripción / customer_id, mostrar opción de administrar */}
+          {stripeCustomerId ? (
+            <div className="bg-slate-50/70 p-5 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-slate-900 capitalize">
+                  {planTier && planTier !== 'free' ? `Plan ${planTier} Activo` : 'Suscripción Activa'}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Gestiona tus tarjetas, métodos de pago o cancela tu suscripción a través del portal seguro de Stripe.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleManageSubscription}
+                disabled={actionLoading}
+                className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
+              >
+                {actionLoading ? 'Abriendo portal...' : 'Administrar Tarjeta / Cancelar'}
+              </button>
+            </div>
+          ) : (
+            /* Si no tiene suscripción, mostrar los dos planes disponibles */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Plan Básico */}
+              <div className={`border rounded-xl p-5 flex flex-col justify-between bg-slate-50/50 ${planTier === 'basic' ? 'border-[#0052FF] bg-blue-50/20' : 'border-slate-200'}`}>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Plan Básico</h3>
+                  <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                    $499 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                  </p>
+                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+                    <li>✓ Expediente clínico electrónico</li>
+                    <li>✓ 150 Notas SOAP asistidas por IA</li>
+                    <li>✓ Prescripción médica estándar</li>
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASIC || '')}
+                  disabled={actionLoading || planTier === 'basic'}
+                  className="mt-5 w-full py-2.5 bg-slate-900 text-white font-semibold text-xs rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all"
+                >
+                  {planTier === 'basic' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Contratar Básico'}
+                </button>
+              </div>
+
+              {/* Plan Pro */}
+              <div className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-blue-50/10 ${planTier === 'pro' ? 'border-[#0052FF]' : 'border-[#0052FF]/60'}`}>
+                <span className="absolute -top-2.5 right-4 bg-[#0052FF] text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
+                  RECOMENDADO
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Plan Pro</h3>
+                  <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                    $799 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
+                  </p>
+                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
+                    <li>✓ Expediente clínico electrónico</li>
+                    <li>✓ 300 Notas SOAP asistidas por IA</li>
+                    <li>✓ <strong>Personalización de Recetas con Membrete</strong></li>
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || '')}
+                  disabled={actionLoading || planTier === 'pro'}
+                  className="mt-5 w-full py-2.5 bg-[#0052FF] text-white font-semibold text-xs rounded-xl hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-all shadow-xs"
+                >
+                  {planTier === 'pro' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Obtener Plan Pro'}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
         <form onSubmit={handleSave} className="space-y-6">
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
             <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Información Personal</h2>
@@ -540,8 +629,9 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
           </section>
 
           {/* CONSULTORIO E IMÁGENES DE RECETA */}
+          {planTier === 'pro' || planTier === 'trial' || planTier === 'free'? (
           <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
-            <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Consultorio / Clínica y Plantilla de Receta</h2>
+            <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Logo o Plantilla de Receta</h2>
 
             <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-center gap-5 mb-4">
               <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm shrink-0 relative group">
@@ -619,6 +709,12 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
               </div>
             </div>
 
+          </section>) : null}
+
+          {/* CONSULTORIO E IMÁGENES DE RECETA */}
+          <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+            <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider mb-2">Consultorio / Clínica</h2>
+
             <div className="space-y-4 pt-2">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase">Nombre del Consultorio</label>
@@ -687,97 +783,6 @@ export default function DoctorProfileFormView({ mode = 'profile' }: DoctorProfil
                 </div>
               </div>
             </div>
-          </section>
-
-          {/* 💳 SECCIÓN: SUSCRIPCIÓN Y PLANES */}
-          <section className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200/80 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-              <div>
-                <h2 className="text-xs font-bold text-[#0052FF] uppercase tracking-wider">Suscripción y Planes</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Gestiona tu plan actual o cambia de nivel para desbloquear más funciones.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-semibold uppercase">Estado:</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${subscriptionStatus === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                  {subscriptionStatus === 'active' ? 'ACTIVO' : 'INACTIVO'}
-                </span>
-              </div>
-            </div>
-
-            {/* Si ya tiene suscripción / customer_id, mostrar opción de administrar */}
-            {stripeCustomerId ? (
-              <div className="bg-slate-50/70 p-5 rounded-xl border border-slate-200/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-slate-900 capitalize">
-                    {planTier && planTier !== 'free' ? `Plan ${planTier} Activo` : 'Suscripción Activa'}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Gestiona tus tarjetas, métodos de pago o cancela tu suscripción a través del portal seguro de Stripe.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleManageSubscription}
-                  disabled={actionLoading}
-                  className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-all shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
-                >
-                  {actionLoading ? 'Abriendo portal...' : 'Administrar Tarjeta / Cancelar'}
-                </button>
-              </div>
-            ) : (
-              /* Si no tiene suscripción, mostrar los dos planes disponibles */
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Plan Básico */}
-                <div className={`border rounded-xl p-5 flex flex-col justify-between bg-slate-50/50 ${planTier === 'basic' ? 'border-[#0052FF] bg-blue-50/20' : 'border-slate-200'}`}>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Plan Básico</h3>
-                    <p className="text-2xl font-extrabold text-slate-900 mt-1">
-                      $499 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
-                    </p>
-                    <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
-                      <li>✓ Expediente clínico electrónico</li>
-                      <li>✓ Notas SOAP asistidas por IA</li>
-                      <li>✓ Prescripción médica estándar</li>
-                    </ul>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_BASIC || '')}
-                    disabled={actionLoading || planTier === 'basic'}
-                    className="mt-5 w-full py-2.5 bg-slate-900 text-white font-semibold text-xs rounded-xl hover:bg-slate-800 disabled:opacity-50 cursor-pointer transition-all"
-                  >
-                    {planTier === 'basic' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Contratar Básico'}
-                  </button>
-                </div>
-
-                {/* Plan Pro */}
-                <div className={`border-2 rounded-xl p-5 flex flex-col justify-between relative bg-blue-50/10 ${planTier === 'pro' ? 'border-[#0052FF]' : 'border-[#0052FF]/60'}`}>
-                  <span className="absolute -top-2.5 right-4 bg-[#0052FF] text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold">
-                    RECOMENDADO
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Plan Pro</h3>
-                    <p className="text-2xl font-extrabold text-slate-900 mt-1">
-                      $799 <span className="text-xs font-normal text-slate-500">MXN/mes</span>
-                    </p>
-                    <ul className="mt-3 space-y-1.5 text-xs text-slate-600">
-                      <li>✓ Todo lo del Plan Básico</li>
-                      <li>✓ <strong>Personalización de Recetas con Membrete</strong></li>
-                      <li>✓ Cédula de Especialidad y Firma Digital</li>
-                    </ul>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleCheckout(process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || '')}
-                    disabled={actionLoading || planTier === 'pro'}
-                    className="mt-5 w-full py-2.5 bg-[#0052FF] text-white font-semibold text-xs rounded-xl hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-all shadow-xs"
-                  >
-                    {planTier === 'pro' ? 'Plan Actual' : actionLoading ? 'Procesando...' : 'Obtener Plan Pro'}
-                  </button>
-                </div>
-              </div>
-            )}
           </section>
 
           {/* BOTÓN DE ACCIÓN GENERAL */}
