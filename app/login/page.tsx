@@ -237,6 +237,17 @@ export default function LoginPage() {
                 <span>Iniciar Sesión en Consultas</span>
               )}
             </button>
+            <div className="text-center pt-3">
+              <p className="text-xs text-slate-500">
+                ¿Aún no tienes cuenta?{' '}
+                <a 
+                  href="/registro" 
+                  className="font-medium text-[#0052FF] hover:underline"
+                >
+                  Regístrate aquí
+                </a>
+              </p>
+            </div>
           </form>
         )}
 

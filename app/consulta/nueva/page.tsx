@@ -10,6 +10,10 @@ import { createClient } from '@/lib/supabase';
 import AudioRecorder from '@/components/consultation/AudioRecorder';
 import SoapEditor from '@/components/consultation/SoapEditor';
 import PrescriptionBuilder from '@/components/prescription/PrescriptionBuilder';
+import PatientSelector from '@/components/consultation/PatientSelector';
+import { ModeSelectorModal } from '@/components/consultation/ModeSelectorModal';
+import TrialBanner from '@/components/common/TrialBanner';
+
 import { getDecryptedPatientListAction } from '@/app/actions/patients';
 import { guardarRecetaSeguraAction } from '@/app/actions/prescriptions';
 
@@ -79,11 +83,14 @@ function NuevaConsultaContent() {
 
   const patientIdFromUrl = searchParams.get('patient_id');
   const autoStart = searchParams.get('auto_start') === 'true';
-  const [medError, setMedError] = useState<string | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  
-  const [showIncompleteMedModal, setShowIncompleteMedModal] = useState(false);
+
+  // Nuevos estados para control de grabaciones y modal de selección
+  const [planTier, setPlanTier] = useState<string>('trial');
+  const [recordingsUsed, setRecordingsUsed] = useState<number>(0);
+  const [showModeSelectorModal, setShowModeSelectorModal] = useState(false);
+
   // Estados para el buscador interactivo de pacientes
   const [patientQuery, setPatientQuery] = useState('');
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
@@ -113,7 +120,7 @@ function NuevaConsultaContent() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [verificandoDoctor, setVerificandoDoctor] = useState(true); // Estado de carga inicial
+  const [verificandoDoctor, setVerificandoDoctor] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -130,7 +137,7 @@ function NuevaConsultaContent() {
     via: '',
   });
 
-  // Filtrar pacientes en tiempo real por nombre completo, CURP o Folio (chart_number)
+  // Filtrar pacientes en tiempo real
   const filteredPatients = patients.filter((patient) => {
     const fullName = `${patient.first_name} ${patient.last_name}`.toLowerCase();
     const chart = (patient.chart_number || '').toLowerCase();
@@ -139,7 +146,7 @@ function NuevaConsultaContent() {
     return fullName.includes(query) || chart.includes(query) || curp.includes(query);
   });
 
-  // Cerrar el dropdown del buscador al hacer clic fuera
+  // Cerrar el dropdown al hacer clic fuera
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (patientDropdownRef.current && !patientDropdownRef.current.contains(e.target as Node)) {
@@ -149,6 +156,45 @@ function NuevaConsultaContent() {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  // Función para determinar el límite según el plan del doctor
+  const getRecordingLimit = (tier: string) => {
+    if (tier === 'pro') return 300;
+    if (tier === 'basic') return 150;
+    return 10; // Trial o Free
+  };
+
+  const recordingLimit = getRecordingLimit(planTier);
+
+  // Función que se ejecuta al presionar "Iniciar Consulta" (paso 1 completado)
+  const handleAbrirSelectorModo = async () => {
+    if (!selectedPatient || !doctorId) {
+      setErrorMessage('Por favor selecciona o registra un paciente.');
+      return;
+    }
+    setErrorMessage(null);
+    setShowModeSelectorModal(true);
+  };
+
+  // Función para incrementar el contador en profiles cuando se usa nota de voz
+  const incrementarContadorGrabaciones = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const nuevoValor = recordingsUsed + 1;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ recordings_used: nuevoValor })
+        .eq('id', user.id);
+
+      if (!error) {
+        setRecordingsUsed(nuevoValor);
+      }
+    } catch (err) {
+      console.error('Error al actualizar contador de grabaciones:', err);
+    }
+  };
 
   // Validación y carga inicial del doctor
   useEffect(() => {
@@ -162,6 +208,19 @@ function NuevaConsultaContent() {
           router.push('/login');
           return;
         }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('subscription_status, plan_tier, recordings_used')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError || profile?.subscription_status !== 'active') {
+          router.push('/perfil');
+          return;
+        }
+        setPlanTier(profile.plan_tier || 'trial');
+        setRecordingsUsed(profile.recordings_used || 0);
 
         const { data: doctor, error } = await supabase
           .from('doctors')
@@ -192,7 +251,7 @@ function NuevaConsultaContent() {
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => {
           if (prev + 1 >= MAX_RECORDING_SECONDS) {
-            stopRecording(); 
+            stopRecording();
             setErrorMessage('Se alcanzó el límite máximo de 10 minutos por grabación.');
             return MAX_RECORDING_SECONDS;
           }
@@ -208,7 +267,7 @@ function NuevaConsultaContent() {
     };
   }, [isRecording, isPaused]);
 
-  // Auto-iniciar consulta si viene redirigido desde el expediente
+  // Auto-iniciar consulta si viene redirigido
   useEffect(() => {
     async function autoIniciar() {
       if (autoStart && selectedPatient && doctorId && !encounterId) {
@@ -287,7 +346,7 @@ function NuevaConsultaContent() {
 
       await cargarPacientes(doctorId, newPatient.id);
       setIsNewPatientModalOpen(false);
-      
+
       setNewPatientData({
         first_name: '',
         last_name: '',
@@ -402,7 +461,7 @@ function NuevaConsultaContent() {
       }
 
       const rawMeds = data.prescription?.medications || data.prescription?.medication_list || data.medications || [];
-      
+
       const medicamentosPlanos = rawMeds.map((med: any) => ({
         medicamento: typeof med === 'string' ? med : (med.medicamento || med.nombre || med.name || ''),
         dosis: med.dosis || med.dosage || '',
@@ -499,7 +558,6 @@ function NuevaConsultaContent() {
 
   const currentStep = !encounterId ? 1 : !editableSoap ? 2 : 3;
 
-  // Si está verificando el perfil del doctor, mostramos una pantalla de carga limpia
   if (verificandoDoctor) {
     return (
       <div className="min-h-screen bg-[#F1F5F9] flex flex-col items-center justify-center p-4">
@@ -513,9 +571,10 @@ function NuevaConsultaContent() {
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans pb-12">
-      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
+      <TrialBanner />
+      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <Link href="/consulta/nueva" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
               <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
             </div>
@@ -549,13 +608,12 @@ function NuevaConsultaContent() {
             <div className="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-0.5 bg-slate-100 z-0"></div>
 
             <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
-                currentStep > 1 
-                  ? 'bg-emerald-500 text-white' 
-                  : currentStep === 1 
-                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${currentStep > 1
+                ? 'bg-emerald-500 text-white'
+                : currentStep === 1
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50'
                   : 'bg-slate-100 text-slate-600'
-              }`}>
+                }`}>
                 {currentStep > 1 ? '✓' : '1'}
               </div>
               <span className={`text-xs font-semibold ${currentStep === 1 ? 'text-[#0052FF]' : currentStep > 1 ? 'text-emerald-700 font-medium' : 'text-slate-700'}`}>
@@ -564,13 +622,12 @@ function NuevaConsultaContent() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
-                currentStep > 2 
-                  ? 'bg-emerald-500 text-white' 
-                  : currentStep === 2 
-                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${currentStep > 2
+                ? 'bg-emerald-500 text-white'
+                : currentStep === 2
+                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50'
                   : 'bg-slate-100 text-slate-700'
-              }`}>
+                }`}>
                 {currentStep > 2 ? '✓' : '2'}
               </div>
               <span className={`text-xs font-semibold ${currentStep === 2 ? 'text-[#0052FF]' : currentStep > 2 ? 'text-emerald-700 font-medium' : 'text-slate-700'}`}>
@@ -579,11 +636,10 @@ function NuevaConsultaContent() {
             </div>
 
             <div className="relative z-10 flex flex-col items-center gap-2 bg-white px-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${
-                currentStep === 3 
-                  ? 'bg-[#0052FF] text-white ring-4 ring-blue-50' 
-                  : 'bg-slate-100 text-slate-700'
-              }`}>
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all shadow-2xs ${currentStep === 3
+                ? 'bg-[#0052FF] text-white ring-4 ring-blue-50'
+                : 'bg-slate-100 text-slate-700'
+                }`}>
                 3
               </div>
               <span className={`text-xs font-semibold ${currentStep === 3 ? 'text-[#0052FF]' : 'text-slate-700'}`}>
@@ -600,155 +656,20 @@ function NuevaConsultaContent() {
           </div>
         )}
 
+        {/* Uso del componente PatientSelector */}
         {!encounterId && (
-          <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800">Seleccionar Paciente de la Consulta</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Identifica el paciente para vincular el expediente clínico.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNewPatientModalOpen(true)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors cursor-pointer"
-              >
-                + Nuevo Paciente
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {selectedPatient ? (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-xs space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          Paciente listo para consulta
-                        </span>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          setSelectedPatient(null);
-                          setPatientQuery('');
-                          setIsPatientDropdownOpen(true);
-                        }}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors cursor-pointer"
-                      >
-                        Cambiar paciente ✕
-                      </button>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <h4 className="text-base font-bold text-slate-800">
-                            {selectedPatient.first_name} {selectedPatient.last_name}
-                          </h4>
-                          {selectedPatient.chart_number && (
-                            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
-                              {selectedPatient.chart_number}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          {selectedPatient.curp ? `CURP: ${selectedPatient.curp}` : 'Expediente clínico sincronizado'}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/pacientes/${selectedPatient.id}`}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors cursor-pointer"
-                        >
-                          Ver Expediente ↗
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={iniciarEncuentro}
-                    className="w-full rounded-xl bg-[#0052FF] text-white py-3.5 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-all cursor-pointer"
-                  >
-                    Iniciar Consulta Médica con {selectedPatient.first_name} →
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="relative" ref={patientDropdownRef}>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                      Buscar o seleccionar paciente registrado
-                    </label>
-
-                    <div 
-                      onClick={() => setIsPatientDropdownOpen(true)}
-                      className="flex items-center gap-2.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-[#1A202C] cursor-pointer focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0052FF]/10 transition-all"
-                    >
-                      <svg className="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      <input
-                        type="text"
-                        value={patientQuery}
-                        onChange={(e) => {
-                          setPatientQuery(e.target.value);
-                          setIsPatientDropdownOpen(true);
-                        }}
-                        placeholder="Escribe el nombre, CURP o folio del paciente..."
-                        className="w-full bg-transparent outline-none placeholder-slate-400 text-slate-700 font-medium cursor-text"
-                      />
-                    </div>
-
-                    {isPatientDropdownOpen && (
-                      <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl bg-white border border-slate-100 shadow-xl shadow-slate-200/60 p-1">
-                        {filteredPatients.length > 0 ? (
-                          filteredPatients.map((patient) => {
-                            const fullName = `${patient.first_name} ${patient.last_name}`;
-                            return (
-                              <div
-                                key={patient.id}
-                                onClick={() => {
-                                  setSelectedPatient(patient);
-                                  setPatientQuery(fullName);
-                                  setIsPatientDropdownOpen(false);
-                                }}
-                                className="flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0052FF] rounded-lg cursor-pointer transition-colors"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{fullName}</span>
-                                  {patient.chart_number && (
-                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                      {patient.chart_number}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="px-4 py-3 text-xs text-slate-400 text-center">
-                            No se encontraron pacientes
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={!selectedPatient}
-                    onClick={iniciarEncuentro}
-                    className="w-full rounded-xl bg-[#0052FF] text-white py-3 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 disabled:bg-slate-300 disabled:shadow-none transition-all cursor-pointer disabled:cursor-not-allowed"
-                  >
-                    Iniciar Consulta Médica →
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+          <PatientSelector
+            selectedPatient={selectedPatient}
+            patientQuery={patientQuery}
+            setPatientQuery={setPatientQuery}
+            filteredPatients={filteredPatients}
+            isPatientDropdownOpen={isPatientDropdownOpen}
+            setIsPatientDropdownOpen={setIsPatientDropdownOpen}
+            patientDropdownRef={patientDropdownRef}
+            onSelectPatient={(patient) => setSelectedPatient(patient)}
+            onOpenNewPatientModal={() => setIsNewPatientModalOpen(true)}
+            onIniciarEncuentro={handleAbrirSelectorModo}
+          />
         )}
 
         {encounterId && !editableSoap && (
@@ -792,6 +713,7 @@ function NuevaConsultaContent() {
         )}
       </main>
 
+      {/* Modal de Nuevo Paciente (Se mantiene aquí por manejo de estados del formulario) */}
       {isNewPatientModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 my-8 animate-in fade-in zoom-in-95 duration-150">
@@ -935,6 +857,7 @@ function NuevaConsultaContent() {
         </div>
       )}
 
+      {/* Modales de validación y guardado final */}
       {pendingMed && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -1026,6 +949,75 @@ function NuevaConsultaContent() {
           </div>
         </div>
       )}
+
+      {showFinalReviewModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900">MedikAI — Validación Final</h3>
+            <p className="text-xs text-slate-600">
+              Por favor, asegúrate de haber revisado y actualizado la Nota SOAP y la receta generada por la IA en caso de ser necesario. ¿Los datos son correctos y deseas finalizar y guardar la consulta?
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowFinalReviewModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200"
+              >
+                Hacer ajustes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFinalReviewModal(false);
+                  ejecutarGuardadoDefinitivo(medicamentosPendientesFinales);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Sí, Guardar Consulta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 COMPONENTE DEL MODAL DE SELECCIÓN DE MODO */}
+      <ModeSelectorModal
+        isOpen={showModeSelectorModal}
+        onClose={() => setShowModeSelectorModal(false)}
+        planTier={planTier}
+        recordingsUsed={recordingsUsed}
+        recordingLimit={recordingLimit}
+        patientName={selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : ''}
+        isLimitReached={planTier === 'free_pro' ? false : recordingsUsed >= recordingLimit}
+        onSelectVoice={async () => {
+          setShowModeSelectorModal(false);
+          if (recordingsUsed >= recordingLimit) {
+            setErrorMessage('Has alcanzado el límite de grabaciones de tu plan actual.');
+            return;
+          }
+          await incrementarContadorGrabaciones();
+          await iniciarEncuentro();
+        }}
+        onSelectManual={async () => {
+          setShowModeSelectorModal(false);
+          if (!selectedPatient || !doctorId) return;
+
+          const { data: encounter, error } = await supabase
+            .from('encounters')
+            .insert([{ doctor_id: doctorId, patient_id: selectedPatient.id, status: 'in_progress' }])
+            .select()
+            .single();
+
+          if (error) {
+            setErrorMessage('Error al iniciar la consulta: ' + error.message);
+            return;
+          }
+
+          setEncounterId(encounter.id);
+          setEditableSoap({ subjetivo: '', objetivo: '', analisis: '', plan: '' });
+          setMedicamentos([]);
+        }}
+      />
     </div>
   );
 }

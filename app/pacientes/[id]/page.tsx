@@ -214,7 +214,7 @@ export default function ExpedienteClinicoPage() {
       {/* 2. Header adaptado a ancho completo */}
       <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-8 py-3.5 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
+          <Link href="/consulta/nueva" className="flex items-center gap-2.5 group">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-[#0052FF] group-hover:bg-blue-100 transition-colors p-1">
               <img src="/logo.png" alt="MedikAI Logo" className="h-full w-auto object-contain" />
             </div>

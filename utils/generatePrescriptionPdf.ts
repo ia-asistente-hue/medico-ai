@@ -85,7 +85,7 @@ export async function getMergedPdfBlobUrl(params: any): Promise<string> {
     }
   }
 
-  const modifiedPdfBytes = await pdfDoc.save();
+ const modifiedPdfBytes = await pdfDoc.save();
   const blob = new Blob([modifiedPdfBytes as any], { type: 'application/pdf' });
   return URL.createObjectURL(blob);
 }

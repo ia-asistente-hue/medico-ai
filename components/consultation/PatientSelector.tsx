@@ -1,283 +1,191 @@
 // components/consultation/PatientSelector.tsx
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { RefObject } from 'react';
+import Link from 'next/link';
 
 interface Patient {
   id: string;
+  chart_number?: string;
   first_name: string;
   last_name: string;
-  date_of_birth?: string;
-  phone?: string | null;
-  email?: string | null;
-  gender?: string;
-  blood_type?: string;
-  allergies?: string | null;
-  chronic_conditions?: string | null;
+  date_of_birth: string;
+  curp?: string | null;
 }
 
 interface PatientSelectorProps {
-  patients: Patient[];
   selectedPatient: Patient | null;
-  onSelectPatient: (patientId: string) => void;
-  onCreatePatient: (newPatient: {
-    first_name: string;
-    last_name: string;
-    date_of_birth: string;
-    phone?: string;
-    email?: string;
-    gender: string;
-    blood_type: string;
-    allergies: string;
-    chronic_conditions: string;
-  }) => Promise<void>;
-  onStartEncounter: () => void;
-  errorMessage?: string | null;
+  patientQuery: string;
+  setPatientQuery: (query: string) => void;
+  filteredPatients: Patient[];
+  isPatientDropdownOpen: boolean;
+  setIsPatientDropdownOpen: (isOpen: boolean) => void;
+  patientDropdownRef: RefObject<HTMLDivElement | null>;
+  onSelectPatient: (patient: Patient | null) => void;
+  onOpenNewPatientModal: () => void;
+  onIniciarEncuentro: () => void;
 }
 
 export default function PatientSelector({
-  patients,
   selectedPatient,
+  patientQuery,
+  setPatientQuery,
+  filteredPatients,
+  isPatientDropdownOpen,
+  setIsPatientDropdownOpen,
+  patientDropdownRef,
   onSelectPatient,
-  onCreatePatient,
-  onStartEncounter,
-  errorMessage,
+  onOpenNewPatientModal,
+  onIniciarEncuentro,
 }: PatientSelectorProps) {
-  const router = useRouter();
-  const [isCreatingPatient, setIsCreatingPatient] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newPatient, setNewPatient] = useState({
-    first_name: '',
-    last_name: '',
-    date_of_birth: '',
-    phone: '',
-    email: '',
-    gender: 'otro',
-    blood_type: 'O+',
-    allergies: '',
-    chronic_conditions: '',
-  });
-
-  const handleSubmitNew = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      const formattedPatient = {
-        ...newPatient,
-        allergies: newPatient.allergies || '',
-        chronic_conditions: newPatient.chronic_conditions || '',
-      };
-
-      await onCreatePatient(formattedPatient);
-      setIsCreatingPatient(false);
-      setNewPatient({
-        first_name: '',
-        last_name: '',
-        date_of_birth: '',
-        phone: '',
-        email: '',
-        gender: 'otro',
-        blood_type: 'O+',
-        allergies: '',
-        chronic_conditions: '',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
-    <div className="rounded-2xl bg-white p-5 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-4 gap-3">
+    <div className="rounded-2xl bg-white p-6 shadow-sm border border-slate-200/80 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-800">
-            {isCreatingPatient ? 'Registrar Nuevo Paciente' : 'Seleccionar Paciente de la Consulta'}
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Identifica al paciente para vincular el expediente clínico.
-          </p>
+          <h2 className="text-lg font-bold text-slate-800">Seleccionar Paciente de la Consulta</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Identifica el paciente para vincular el expediente clínico.</p>
         </div>
         <button
           type="button"
-          onClick={() => setIsCreatingPatient(!isCreatingPatient)}
-          className="self-start sm:self-auto text-xs font-semibold text-[#0052FF] hover:text-[#0043D6] bg-blue-50 hover:bg-blue-100 px-3.5 py-2 rounded-xl transition-all"
+          onClick={onOpenNewPatientModal}
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors cursor-pointer"
         >
-          {isCreatingPatient ? '← Volver a Selección' : '+ Nuevo Paciente'}
+          + Nuevo Paciente
         </button>
       </div>
 
-      {isCreatingPatient ? (
-        <form onSubmit={handleSubmitNew} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre(s)</label>
-              <input
-                type="text"
-                placeholder="Ej. María"
-                required
-                /* text-base en móvil previene el zoom automático en iOS */
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.first_name}
-                onChange={(e) => setNewPatient({ ...newPatient, first_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Apellidos</label>
-              <input
-                type="text"
-                placeholder="Ej. López Pérez"
-                required
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.last_name}
-                onChange={(e) => setNewPatient({ ...newPatient, last_name: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                Teléfono <span className="text-slate-400 font-normal lowercase">(opcional)</span>
-              </label>
-              <input
-                type="tel"
-                placeholder="Ej. +52 55 1234 5678"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.phone}
-                onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                Correo Electrónico <span className="text-slate-400 font-normal lowercase">(opcional)</span>
-              </label>
-              <input
-                type="email"
-                placeholder="paciente@ejemplo.com"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.email}
-                onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                required
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.date_of_birth}
-                onChange={(e) => setNewPatient({ ...newPatient, date_of_birth: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Género</label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.gender}
-                onChange={(e) => setNewPatient({ ...newPatient, gender: e.target.value })}
-              >
-                <option value="femenino">Femenino</option>
-                <option value="masculino">Masculino</option>
-                <option value="otro">Otro</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Tipo de Sangre</label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.blood_type}
-                onChange={(e) => setNewPatient({ ...newPatient, blood_type: e.target.value })}
-              >
-                <option value="O+">O+</option>
-                <option value="O-">O-</option>
-                <option value="A+">A+</option>
-                <option value="A-">A-</option>
-                <option value="B+">B+</option>
-                <option value="B-">B-</option>
-                <option value="AB+">AB+</option>
-                <option value="AB-">AB-</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Alergias Registradas</label>
-              <input
-                type="text"
-                placeholder="Ej. Penicilina, Polvo, Marisco"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.allergies}
-                onChange={(e) => setNewPatient({ ...newPatient, allergies: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Condiciones Crónicas</label>
-              <input
-                type="text"
-                placeholder="Ej. Hipertensión, Diabetes Tipo 2"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:py-2.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-                value={newPatient.chronic_conditions}
-                onChange={(e) => setNewPatient({ ...newPatient, chronic_conditions: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-[#00D09C] py-3.5 text-sm font-semibold text-slate-900 shadow-md hover:bg-[#00B88A] active:scale-[0.99] disabled:opacity-60 transition-all"
-          >
-            {isSubmitting ? 'Guardando paciente...' : 'Guardar Paciente y Seleccionar'}
-          </button>
-        </form>
-      ) : (
-        <div className="space-y-5">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-slate-600 uppercase">
-                Buscar o Seleccionar Paciente Registrado
-              </label>
-
-              {selectedPatient && (
+      <div className="space-y-4">
+        {selectedPatient ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-blue-200 bg-white p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Paciente listo para consulta
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => router.push(`/pacientes/${selectedPatient.id}`)}
-                  className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                  onClick={() => {
+                    onSelectPatient(null);
+                    setPatientQuery('');
+                    setIsPatientDropdownOpen(true);
+                  }}
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors cursor-pointer"
                 >
-                  📂 Ver Expediente
+                  Cambiar paciente ✕
                 </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <h4 className="text-base font-bold text-slate-800">
+                      {selectedPatient.first_name} {selectedPatient.last_name}
+                    </h4>
+                    {selectedPatient.chart_number && (
+                      <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                        {selectedPatient.chart_number}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {selectedPatient.curp ? `CURP: ${selectedPatient.curp}` : 'Expediente clínico sincronizado'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/pacientes/${selectedPatient.id}`}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-[#0052FF] hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    Ver Expediente ↗
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onIniciarEncuentro}
+              className="w-full rounded-xl bg-[#0052FF] text-white py-3.5 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 transition-all cursor-pointer"
+            >
+              Iniciar Consulta Médica con {selectedPatient.first_name} →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="relative" ref={patientDropdownRef}>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Buscar o seleccionar paciente registrado
+              </label>
+
+              <div
+                onClick={() => setIsPatientDropdownOpen(true)}
+                className="flex items-center gap-2.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-[#1A202C] cursor-pointer focus-within:border-[#0052FF] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0052FF]/10 transition-all"
+              >
+                <svg className="h-4 w-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={patientQuery}
+                  onChange={(e) => {
+                    setPatientQuery(e.target.value);
+                    setIsPatientDropdownOpen(true);
+                  }}
+                  placeholder="Escribe el nombre, CURP o folio del paciente..."
+                  className="w-full bg-transparent outline-none placeholder-slate-400 text-slate-700 font-medium cursor-text"
+                />
+              </div>
+
+              {isPatientDropdownOpen && (
+                <div className="absolute z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-xl bg-white border border-slate-100 shadow-xl shadow-slate-200/60 p-1">
+                  {filteredPatients.length > 0 ? (
+                    filteredPatients.map((patient) => {
+                      const fullName = `${patient.first_name} ${patient.last_name}`;
+                      return (
+                        <div
+                          key={patient.id}
+                          onClick={() => {
+                            onSelectPatient(patient);
+                            setPatientQuery(fullName);
+                            setIsPatientDropdownOpen(false);
+                          }}
+                          className="flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-[#0052FF] rounded-lg cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{fullName}</span>
+                            {patient.chart_number && (
+                              <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {patient.chart_number}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="px-4 py-3 text-xs text-slate-400 text-center">
+                      No se encontraron pacientes
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
-            <select
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-base sm:text-sm text-slate-800 focus:bg-white focus:border-[#0052FF] focus:outline-none focus:ring-4 focus:ring-[#0052FF]/10"
-              value={selectedPatient?.id || ''}
-              onChange={(e) => onSelectPatient(e.target.value)}
+            <button
+              type="button"
+              disabled={!selectedPatient}
+              onClick={onIniciarEncuentro}
+              className="w-full rounded-xl bg-[#0052FF] text-white py-3 text-sm font-semibold shadow-lg shadow-blue-500/20 hover:bg-blue-600 disabled:bg-slate-300 disabled:shadow-none transition-all cursor-pointer disabled:cursor-not-allowed"
             >
-              <option value="">-- Selecciona un paciente de la lista --</option>
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.first_name} {p.last_name} {p.phone ? `(${p.phone})` : ''}
-                </option>
-              ))}
-            </select>
+              Iniciar Consulta Médica →
+            </button>
           </div>
-
-          <button
-            onClick={onStartEncounter}
-            disabled={!selectedPatient}
-            className="w-full rounded-xl bg-[#0052FF] py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#0052FF]/20 hover:bg-[#0043D6] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          >
-            Iniciar Consulta Médica →
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
